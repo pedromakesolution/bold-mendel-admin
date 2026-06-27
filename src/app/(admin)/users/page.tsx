@@ -37,7 +37,7 @@ async function getUsers({
   let query = supabase
     .from('profiles')
     .select(
-      'id, full_name, email, role, is_active, created_at, business_info',
+      'id, full_name, email, role, is_active, plan, created_at, business_info',
       { count: 'exact' }
     )
     .order('created_at', { ascending: false })
@@ -45,6 +45,10 @@ async function getUsers({
 
   if (search) {
     query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`)
+  }
+  if (plan && plan !== 'all') {
+    // Server-side filter using the dedicated indexed plan column — O(log n)
+    query = query.eq('plan', plan)
   }
   if (status === 'active') {
     query = query.eq('is_active', true)
@@ -54,15 +58,7 @@ async function getUsers({
 
   const { data, count, error } = await query
 
-  // Filter by plan in memory (plan is in business_info JSONB)
-  let users = data ?? []
-  if (plan && plan !== 'all') {
-    users = users.filter(
-      (u) => (u.business_info as Record<string, unknown>)?.plan === plan
-    )
-  }
-
-  return { users, total: count ?? 0, pageSize: PAGE_SIZE }
+  return { users: data ?? [], total: count ?? 0, pageSize: PAGE_SIZE }
 }
 
 export default async function UsersPage({
@@ -180,8 +176,7 @@ export default async function UsersPage({
               </tr>
             ) : (
               users.map((user) => {
-                const plan = (user.business_info as Record<string, unknown>)?.plan as string ?? 'free'
-                const badge = PLAN_BADGE[plan] ?? PLAN_BADGE.free
+                const badge = PLAN_BADGE[user.plan] ?? PLAN_BADGE.free
                 return (
                   <tr key={user.id} className="hover:bg-zinc-800/50 transition-colors">
                     <td className="px-4 py-3">

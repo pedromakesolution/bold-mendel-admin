@@ -64,7 +64,7 @@ export default async function UserDetailPage({
         supabase.from('clients').select('id', { count: 'exact', head: true }).eq('freelancer_id', id),
         supabase.from('contracts').select('id', { count: 'exact', head: true }).eq('freelancer_id', id),
         supabase.from('proposals').select('id', { count: 'exact', head: true }).eq('freelancer_id', id),
-        supabase.from('ai_usage_logs').select('prompt_tokens.sum(), completion_tokens.sum()', { count: 'exact', head: false }).eq('user_id', id),
+        supabase.rpc('get_user_ai_metrics', { p_user_id: id }),
       ]),
       supabase
         .from('audit_logs')
@@ -78,10 +78,12 @@ export default async function UserDetailPage({
 
   const profile = profileResult.data
   const sub = subResult.data
-  const [projects, clients, contracts, proposals] = countsResult
+  const [projects, clients, contracts, proposals, aiMetricsResult] = countsResult
   const auditLogs = auditResult.data ?? []
+  const aiMetrics = (aiMetricsResult.data as Record<string, number> | null)
 
-  const plan = (profile.business_info as Record<string, unknown>)?.plan as string ?? 'free'
+  // Use the dedicated plan column (fast, no JSONB parsing needed)
+  const plan = (profile as any).plan as string ?? 'free'
 
   const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
     <div className="flex items-center justify-between border-b border-zinc-800 py-3 last:border-0">
@@ -157,6 +159,20 @@ export default async function UserDetailPage({
           <InfoRow label="Clientes" value={clients.count ?? 0} />
           <InfoRow label="Contratos" value={contracts.count ?? 0} />
           <InfoRow label="Propostas" value={proposals.count ?? 0} />
+          {aiMetrics && (
+            <>
+              <InfoRow
+                label="Requisições IA"
+                value={(aiMetrics.total_requests ?? 0).toLocaleString('pt-BR')}
+              />
+              <InfoRow
+                label="Tokens usados"
+                value={(
+                  (aiMetrics.total_prompt ?? 0) + (aiMetrics.total_completion ?? 0)
+                ).toLocaleString('pt-BR')}
+              />
+            </>
+          )}
         </div>
       </div>
 

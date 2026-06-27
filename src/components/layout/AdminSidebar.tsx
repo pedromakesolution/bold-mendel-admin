@@ -19,8 +19,21 @@ const NAV_ITEMS = [
   { href: '/audit', label: 'Auditoria', icon: ClipboardList },
 ] as const
 
-export default function AdminSidebar() {
+export default function AdminSidebar({
+  adminName,
+  adminEmail,
+}: {
+  adminName: string
+  adminEmail: string
+}) {
   const pathname = usePathname()
+
+  // Derive initials for the avatar fallback
+  const initials = adminName
+    .split(' ')
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('')
 
   return (
     <aside className="flex h-full w-60 flex-col border-r border-zinc-800 bg-zinc-900">
@@ -61,8 +74,23 @@ export default function AdminSidebar() {
         </ul>
       </nav>
 
-      {/* Sign out */}
+      {/* Admin user widget + Sign out */}
       <div className="border-t border-zinc-800 p-3">
+        {/* Logged-in admin info */}
+        <div className="mb-2 flex items-center gap-3 rounded-lg px-3 py-2">
+          <div
+            aria-hidden="true"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-700 text-xs font-bold text-white"
+          >
+            {initials}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold text-zinc-200">{adminName}</p>
+            <p className="truncate text-xs text-zinc-500">{adminEmail}</p>
+          </div>
+        </div>
+
+        {/* Sign out */}
         <form action={signOut}>
           <button
             type="submit"

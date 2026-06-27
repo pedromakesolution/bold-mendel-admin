@@ -13,17 +13,11 @@ export const revalidate = 300
 async function getDashboardStats() {
   const supabase = createAdminClient()
 
-  const [profilesResult, subsResult, metricsResult] = await Promise.all([
-    // Total de usuários e breakdown por status
+  const [profilesResult, metricsResult] = await Promise.all([
+    // Total de usuários, status e plano atual
     supabase
       .from('profiles')
-      .select('is_active', { count: 'exact', head: false })
-      .select('is_active'),
-
-    // Assinaturas ativas por plano
-    supabase
-      .from('subscriptions')
-      .select('plan_id, status'),
+      .select('is_active, business_info'),
 
     // Última métrica financeira registrada
     supabase
@@ -36,16 +30,24 @@ async function getDashboardStats() {
 
   const profiles = profilesResult.data ?? []
   const totalUsers = profiles.length
-  const activeUsers = profiles.filter((p) => p.is_active).length
-  const inactiveUsers = totalUsers - activeUsers
+  
+  let activeUsers = 0
+  let inactiveUsers = 0
+  const planBreakdown = { free: 0, starter: 0, pro: 0, studio: 0 }
 
-  const subs = subsResult.data ?? []
-  const activeSubs = subs.filter((s) => s.status === 'active' || s.status === 'trialing')
-  const planBreakdown = {
-    free: activeSubs.filter((s) => s.plan_id === 'free').length,
-    starter: activeSubs.filter((s) => s.plan_id === 'starter').length,
-    pro: activeSubs.filter((s) => s.plan_id === 'pro').length,
-    studio: activeSubs.filter((s) => s.plan_id === 'studio').length,
+  for (const p of profiles) {
+    if (p.is_active) {
+      activeUsers++
+      
+      const bizInfo = p.business_info as Record<string, any> | null
+      const plan = bizInfo?.plan ?? 'free'
+      if (plan === 'starter') planBreakdown.starter++
+      else if (plan === 'pro') planBreakdown.pro++
+      else if (plan === 'studio') planBreakdown.studio++
+      else planBreakdown.free++
+    } else {
+      inactiveUsers++
+    }
   }
 
   const metrics = metricsResult.data

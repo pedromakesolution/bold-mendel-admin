@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase-admin'
 import { requireAdminSession } from '@/lib/auth'
 import FinanceCharts from '@/components/charts/FinanceCharts'
+import RecalculateButton from '@/components/finance/RecalculateButton'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -120,33 +121,4 @@ export default async function FinancePage() {
   )
 }
 
-// Inline Client Component for the recalculate button to keep the page Server
-function RecalculateButton() {
-  return (
-    <form
-      action={async () => {
-        'use server'
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/calculate-financial-metrics`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-              'Content-Type': 'application/json',
-            },
-          }
-        )
-        if (!res.ok) {
-          console.error('[recalculate] Failed:', await res.text())
-        }
-      }}
-    >
-      <button
-        type="submit"
-        className="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-zinc-700"
-      >
-        Recalcular Agora
-      </button>
-    </form>
-  )
-}
+

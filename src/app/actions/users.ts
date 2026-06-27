@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase-admin'
 import { requireAdminSession } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 
-type AuditAction = 'deactivate_user' | 'reactivate_user' | 'reset_password' | 'change_plan'
+type AuditAction = 'deactivate_user' | 'reactivate_user' | 'reset_password' | 'change_plan' | 'anonymize_user'
 
 /**
  * Writes an entry to the audit_logs table.
@@ -207,7 +207,13 @@ export async function changePlan(userId: string, newPlan: Plan) {
     .eq('freelancer_id', userId)
   // Subscriptions row may not exist for free users — intentional, not an error
 
-  // 3. Audit log
+  // 3. Update dedicated plan column on profiles
+  await supabase
+    .from('profiles')
+    .update({ plan: newPlan })
+    .eq('id', userId)
+
+  // 4. Audit log
   await writeAuditLog({
     adminId: session.user.id,
     action: 'change_plan',
@@ -224,4 +230,95 @@ export async function changePlan(userId: string, newPlan: Plan) {
 // Utility used by root page redirect
 export async function redirectToDashboard() {
   redirect('/dashboard')
+}
+
+// ── anonymizeUser ─────────────────────────────────────────────────────────────
+
+/**
+ * LGPD Tombstoning — permanently anonymizes a user's PII.
+ *
+ * This is NOT a hard delete. The user's UUID remains intact so that:
+ *   - contracts remain valid (freelancer_id references preserved)
+ *   - transactions maintain fiscal integrity (6-year retention)
+ *   - audit trail is complete
+ *
+ * What gets destroyed:
+ *   - name, email, phone, CPF/CNPJ, PIX key, avatar (PII)
+ *   - auth credentials (password reset to random, account banned)
+ *
+ * What is preserved:
+ *   - UUID (referential integrity)
+ *   - contracts, transactions, projects (fiscal/legal records)
+ *   - audit_logs (immutable — anonymization itself is logged)
+ */
+export async function anonymizeUser(userId: string) {
+  const session = await requireAdminSession()
+  const supabase = createAdminClient()
+
+  // 1. Read current profile data BEFORE anonymization (for audit record)
+  const { data: profile, error: profileFetchError } = await supabase
+    .from('profiles')
+    .select('full_name, email')
+    .eq('id', userId)
+    .single()
+
+  if (profileFetchError || !profile) {
+    return { error: 'Usuário não encontrado.' }
+  }
+
+  const anonEmail = `deleted_${crypto.randomUUID()}@deleted.freeladock.com`
+
+  // 2. Audit BEFORE the write (records original PII for legal purposes)
+  await writeAuditLog({
+    adminId: session.user.id,
+    action: 'anonymize_user',
+    targetId: userId,
+    payload: {
+      original_name: profile.full_name,
+      original_email: profile.email,
+      anonymized_at: new Date().toISOString(),
+      anon_email: anonEmail,
+    },
+  })
+
+  // 3. Overwrite PII in profiles — UUID stays intact
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({
+      full_name:     '[Usuário Excluído - LGPD]',
+      email:         anonEmail,
+      avatar_url:    null,
+      cpf_cnpj:      null,
+      phone:         null,
+      pix_key:       null,
+      business_info: {},
+      plan:          'free',
+      is_active:     false,
+      deleted_at:    new Date().toISOString(),
+    })
+    .eq('id', userId)
+
+  if (profileError) {
+    return { error: 'Falha ao anonimizar perfil: ' + profileError.message }
+  }
+
+  // 4. Invalidate auth credentials (user can never log in again)
+  const { error: authError } = await supabase.auth.admin.updateUserById(userId, {
+    email:        anonEmail,
+    password:     crypto.randomUUID(), // cryptographically random — unguessable
+    ban_duration: '876000h',           // 100 years = permanent
+    user_metadata: {
+      deleted: true,
+      deleted_at: new Date().toISOString(),
+    },
+  })
+
+  if (authError) {
+    console.error('[anonymizeUser] Auth update failed:', authError)
+    // Profile is already anonymized — partial success, non-fatal
+  }
+
+  revalidatePath('/users')
+  revalidatePath(`/users/${userId}`)
+  return { success: true }
 }
