@@ -7,8 +7,10 @@ import {
   sendPasswordReset,
   changePlan,
   anonymizeUser,
+  hardDeleteUser,
 } from '@/app/actions/users'
-import { UserX, UserCheck, KeyRound, RefreshCw, Trash2, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { UserX, UserCheck, KeyRound, RefreshCw, Trash2, X, ShieldAlert } from 'lucide-react'
 
 const PLANS = ['free', 'starter', 'pro', 'studio'] as const
 type Plan = (typeof PLANS)[number]
@@ -50,8 +52,9 @@ function Toast({
 function ConfirmDialog({
   title,
   description,
-  confirmLabel,
   confirmClassName,
+  expectedInput,
+  inputPlaceholder,
   onConfirm,
   onCancel,
 }: {
@@ -59,9 +62,14 @@ function ConfirmDialog({
   description: string
   confirmLabel: string
   confirmClassName: string
+  expectedInput?: string
+  inputPlaceholder?: string
   onConfirm: () => void
   onCancel: () => void
 }) {
+  const [inputValue, setInputValue] = useState('')
+  const isInputValid = !expectedInput || inputValue === expectedInput
+
   return (
     <div
       role="dialog"
@@ -74,6 +82,22 @@ function ConfirmDialog({
           {title}
         </h3>
         <p className="mt-2 text-sm text-zinc-400">{description}</p>
+        
+        {expectedInput && (
+          <div className="mt-4">
+            <label className="mb-2 block text-sm text-zinc-400">
+              Para confirmar, digite <span className="font-bold text-zinc-200">{expectedInput}</span> abaixo:
+            </label>
+            <input 
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder={inputPlaceholder}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 transition-colors"
+            />
+          </div>
+        )}
+
         <div className="mt-6 flex justify-end gap-3">
           <button
             onClick={onCancel}
@@ -82,8 +106,9 @@ function ConfirmDialog({
             Cancelar
           </button>
           <button
+            disabled={!isInputValid}
             onClick={onConfirm}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${confirmClassName}`}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed ${confirmClassName}`}
           >
             {confirmLabel}
           </button>
@@ -96,13 +121,16 @@ function ConfirmDialog({
 // ── UserActionButtons ─────────────────────────────────────────────────────────
 export default function UserActionButtons({
   userId,
+  userEmail,
   isActive,
   currentPlan,
 }: {
   userId: string
+  userEmail: string
   isActive: boolean
   currentPlan: string
 }) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null)
   const [dialog, setDialog] = useState<{
@@ -110,6 +138,8 @@ export default function UserActionButtons({
     description: string
     confirmLabel: string
     confirmClassName: string
+    expectedInput?: string
+    inputPlaceholder?: string
     onConfirm: () => void
   } | null>(null)
 
@@ -204,6 +234,33 @@ export default function UserActionButtons({
             showToast(result.error, 'error')
           } else {
             showToast('Dados pessoais anonimizados com sucesso (LGPD).', 'success')
+          }
+        })
+      },
+    })
+  }
+
+  function handleHardDelete() {
+    openDialog({
+      title: '🚨 Excluir conta permanentemente (Hard Delete)',
+      description:
+        'Atenção extrema: esta ação apagará o usuário e todas as suas informações fisicamente do banco de dados de autenticação e da tabela profiles. A menos que hajam políticas de deleção em cascata (cascade), isso pode falhar caso haja contratos atrelados a ele. Esta ação NÃO tem volta.',
+      confirmLabel: 'Sim, excluir totalmente',
+      confirmClassName: 'bg-red-800 text-white hover:bg-red-700',
+      expectedInput: userEmail,
+      inputPlaceholder: 'Digite o email do usuário',
+      onConfirm: () => {
+        closeDialog()
+        startTransition(async () => {
+          const result = await hardDeleteUser(userId)
+          if (result?.error) {
+            showToast(result.error, 'error')
+          } else {
+            showToast('Usuário deletado permanentemente.', 'success')
+            // Redirecionar para a lista de usuários pois o ID atual não existe mais
+            setTimeout(() => {
+              router.push('/users')
+            }, 1500)
           }
         })
       },
@@ -309,6 +366,16 @@ export default function UserActionButtons({
           >
             <Trash2 className="h-4 w-4" aria-hidden="true" />
             Anonimizar dados pessoais (LGPD)
+          </button>
+          
+          <button
+            id="btn-hard-delete-user"
+            onClick={handleHardDelete}
+            disabled={isPending}
+            className="mt-3 flex items-center gap-2 rounded-lg border border-red-900 bg-red-950/40 px-4 py-2 text-sm font-medium text-red-400 transition hover:bg-red-950/70 disabled:opacity-50"
+          >
+            <ShieldAlert className="h-4 w-4" aria-hidden="true" />
+            Excluir conta permanentemente (Hard Delete)
           </button>
         </div>
       </div>

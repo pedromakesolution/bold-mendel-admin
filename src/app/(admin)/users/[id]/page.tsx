@@ -181,6 +181,7 @@ export default async function UserDetailPage({
         <h2 className="mb-4 text-sm font-semibold text-zinc-300">Ações Administrativas</h2>
         <UserActionButtons
           userId={profile.id}
+          userEmail={profile.email}
           isActive={profile.is_active}
           currentPlan={plan}
         />

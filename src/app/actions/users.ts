@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase-admin'
 import { requireAdminSession } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 
-type AuditAction = 'deactivate_user' | 'reactivate_user' | 'reset_password' | 'change_plan' | 'anonymize_user'
+type AuditAction = 'deactivate_user' | 'reactivate_user' | 'reset_password' | 'change_plan' | 'anonymize_user' | 'hard_delete_user'
 
 /**
  * Writes an entry to the audit_logs table.
@@ -320,5 +320,60 @@ export async function anonymizeUser(userId: string) {
 
   revalidatePath('/users')
   revalidatePath(`/users/${userId}`)
+  return { success: true }
+}
+
+// ── hardDeleteUser ─────────────────────────────────────────────────────────────
+
+/**
+ * Hard deletes a user from the database.
+ * This permanently deletes the user from auth.users and profiles.
+ * CAUTION: May fail if there are foreign key constraints (e.g. contracts, projects)
+ * unless ON DELETE CASCADE is configured.
+ */
+export async function hardDeleteUser(userId: string) {
+  const session = await requireAdminSession()
+  const supabase = createAdminClient()
+
+  // 1. Read current profile data BEFORE deletion (for audit record)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, email')
+    .eq('id', userId)
+    .single()
+
+  // 2. Audit BEFORE the write
+  await writeAuditLog({
+    adminId: session.user.id,
+    action: 'hard_delete_user',
+    targetId: userId,
+    payload: {
+      original_name: profile?.full_name,
+      original_email: profile?.email,
+      hard_deleted_at: new Date().toISOString(),
+    },
+  })
+
+  // 3. Delete from auth.users (this often cascades to public.profiles)
+  const { error: authError } = await supabase.auth.admin.deleteUser(userId)
+
+  if (authError) {
+    console.error('[hardDeleteUser] Auth delete failed:', authError)
+    return { error: 'Falha ao excluir usuário na autenticação: ' + authError.message }
+  }
+
+  // 4. Fallback: manually delete from profiles if no cascade
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', userId)
+
+  if (profileError) {
+    console.error('[hardDeleteUser] Profile delete failed:', profileError)
+  }
+
+  revalidatePath('/users')
+  // We can't easily redirect from here if called from a button on the details page,
+  // we will handle navigation on the client.
   return { success: true }
 }
