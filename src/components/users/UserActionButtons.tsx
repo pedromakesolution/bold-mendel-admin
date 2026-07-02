@@ -52,6 +52,7 @@ function Toast({
 function ConfirmDialog({
   title,
   description,
+  confirmLabel,
   confirmClassName,
   expectedInput,
   inputPlaceholder,
