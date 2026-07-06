@@ -93,14 +93,14 @@ export default async function UserDetailPage({
   )
 
   return (
-    <div className="p-8">
-      <div className="mb-8 flex items-start justify-between">
+    <div className="p-4 md:p-8">
+      <div className="mb-6 md:mb-8 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">{profile.full_name}</h1>
+          <h1 className="text-xl font-bold text-zinc-100 md:text-2xl">{profile.full_name}</h1>
           <p className="mt-1 text-sm text-zinc-400">{profile.email}</p>
         </div>
         <span
-          className={`rounded-full px-3 py-1 text-sm font-semibold ${
+          className={`self-start rounded-full px-3 py-1 text-sm font-semibold ${
             profile.is_active
               ? 'bg-emerald-600/10 text-emerald-400'
               : 'bg-red-600/10 text-red-400'
@@ -110,7 +110,7 @@ export default async function UserDetailPage({
         </span>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
         {/* Profile Info */}
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
           <h2 className="mb-3 text-sm font-semibold text-zinc-300">Perfil</h2>

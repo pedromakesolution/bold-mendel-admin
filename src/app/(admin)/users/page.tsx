@@ -85,12 +85,12 @@ export default async function UsersPage({
   const totalPages = Math.ceil(total / pageSize)
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-6 md:mb-8 flex items-center justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-zinc-100">
-            <Users className="h-6 w-6 text-indigo-400" aria-hidden="true" />
+          <h1 className="flex items-center gap-2 text-xl font-bold text-zinc-100 md:text-2xl">
+            <Users className="h-5 w-5 text-indigo-400 md:h-6 md:w-6" aria-hidden="true" />
             Usuários
           </h1>
           <p className="mt-1 text-sm text-zinc-400">
@@ -100,8 +100,8 @@ export default async function UsersPage({
       </div>
 
       {/* Filters */}
-      <form method="GET" className="mb-6 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-48">
+      <form method="GET" className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="relative flex-1 min-w-0 sm:min-w-48">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
           <input
             name="search"
@@ -113,11 +113,11 @@ export default async function UsersPage({
         </div>
 
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-zinc-500" aria-hidden="true" />
+          <Filter className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden="true" />
           <select
             name="plan"
             defaultValue={params.plan ?? 'all'}
-            className="rounded-lg border border-zinc-700 bg-zinc-800 py-2 pl-3 pr-8 text-sm text-zinc-100 outline-none focus:border-indigo-500"
+            className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 py-2 pl-3 pr-8 text-sm text-zinc-100 outline-none focus:border-indigo-500"
           >
             <option value="all">Todos os planos</option>
             <option value="free">Free</option>
@@ -129,7 +129,7 @@ export default async function UsersPage({
           <select
             name="status"
             defaultValue={params.status ?? 'all'}
-            className="rounded-lg border border-zinc-700 bg-zinc-800 py-2 pl-3 pr-8 text-sm text-zinc-100 outline-none focus:border-indigo-500"
+            className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 py-2 pl-3 pr-8 text-sm text-zinc-100 outline-none focus:border-indigo-500"
           >
             <option value="all">Todos os status</option>
             <option value="active">Ativos</option>
@@ -145,8 +145,52 @@ export default async function UsersPage({
         </button>
       </form>
 
-      {/* Table */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+      {/* ── Mobile: card list (<md) ── */}
+      <div className="md:hidden flex flex-col gap-2">
+        {users.length === 0 ? (
+          <p className="py-12 text-center text-zinc-500">
+            Nenhum usuário encontrado para os filtros aplicados.
+          </p>
+        ) : (
+          users.map((user) => {
+            const badge = PLAN_BADGE[user.plan] ?? PLAN_BADGE.free
+            return (
+              <Link
+                key={user.id}
+                href={`/users/${user.id}`}
+                className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 transition-colors hover:bg-zinc-800/60"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-zinc-100">{user.full_name}</p>
+                  <p className="truncate text-xs text-zinc-500">{user.email}</p>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${badge.className}`}>
+                      {badge.label}
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        user.is_active
+                          ? 'bg-emerald-600/10 text-emerald-400'
+                          : 'bg-red-600/10 text-red-400'
+                      }`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${user.is_active ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                      {user.is_active ? 'Ativo' : 'Inativo'}
+                    </span>
+                    <span className="text-xs text-zinc-600">
+                      {new Date(user.created_at).toLocaleDateString('pt-BR')}
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="ml-3 h-4 w-4 shrink-0 text-zinc-600" />
+              </Link>
+            )
+          })
+        )}
+      </div>
+
+      {/* ── Desktop: table (md+) ── */}
+      <div className="hidden md:block rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="border-b border-zinc-800">
             <tr>

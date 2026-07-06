@@ -98,9 +98,9 @@ export default async function DashboardPage() {
     : '—'
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-zinc-100">Dashboard</h1>
+    <div className="p-4 md:p-8">
+      <div className="mb-6 md:mb-8">
+        <h1 className="text-xl font-bold text-zinc-100 md:text-2xl">Dashboard</h1>
         <p className="mt-1 text-sm text-zinc-400">
           Visão geral da plataforma Freela Dock
         </p>
