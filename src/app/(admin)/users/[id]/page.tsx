@@ -84,6 +84,7 @@ export default async function UserDetailPage({
 
   // Use the dedicated plan column (fast, no JSONB parsing needed)
   const plan = (profile as any).plan as string ?? 'free'
+  const business = (profile.business_info as Record<string, any>) || {}
 
   const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
     <div className="flex items-center justify-between border-b border-zinc-800 py-3 last:border-0">
@@ -175,6 +176,84 @@ export default async function UserDetailPage({
           )}
         </div>
       </div>
+
+      {/* Cadastro & Agência Details */}
+      <div className="mt-6 grid gap-4 md:gap-6 lg:grid-cols-2">
+        {/* Dados Cadastrais / Profissionais */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-300">Dados Profissionais & Financeiros</h2>
+          <InfoRow
+            label="WhatsApp (Telefone)"
+            value={profile.phone ? (
+              <a
+                href={`https://wa.me/55${profile.phone.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-400 hover:underline"
+              >
+                {profile.phone}
+              </a>
+            ) : (
+              <span className="text-zinc-500">Não informado</span>
+            )}
+          />
+          <InfoRow
+            label="CPF / CNPJ"
+            value={profile.cpf_cnpj || <span className="text-zinc-500">Não informado</span>}
+          />
+          <InfoRow
+            label="Chave PIX"
+            value={profile.pix_key || <span className="text-zinc-500">Não informada</span>}
+          />
+        </div>
+
+        {/* Perfil da Agência */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-300">Perfil da Agência & Integrações</h2>
+          <InfoRow
+            label="Nome da Agência"
+            value={business.agency_name || <span className="text-zinc-500">Não informado</span>}
+          />
+          <InfoRow
+            label="Slogan / Tagline"
+            value={business.agency_tagline || <span className="text-zinc-500">Não informado</span>}
+          />
+          <InfoRow
+            label="Website"
+            value={business.agency_website ? (
+              <a
+                href={business.agency_website.startsWith('http') ? business.agency_website : `https://${business.agency_website}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-400 hover:underline"
+              >
+                {business.agency_website}
+              </a>
+            ) : (
+              <span className="text-zinc-500">Não informado</span>
+            )}
+          />
+          <InfoRow
+            label="Endereço"
+            value={business.agency_address || <span className="text-zinc-500">Não informado</span>}
+          />
+          <InfoRow
+            label="Mercado Pago"
+            value={(business.mp_public_key && business.mp_access_token) ? (
+              <span className="text-emerald-400 font-medium">Configurado</span>
+            ) : (
+              <span className="text-zinc-500">Não configurado</span>
+            )}
+          />
+        </div>
+      </div>
+
+      {business.agency_description && (
+        <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-300">Descrição dos Serviços / Biografia</h2>
+          <p className="text-sm text-zinc-400 whitespace-pre-wrap">{business.agency_description}</p>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
