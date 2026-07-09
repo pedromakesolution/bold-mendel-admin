@@ -140,7 +140,7 @@ export default async function UserDetailPage({
               <InfoRow label="Plano" value={PLAN_LABEL[sub.plan_id] ?? sub.plan_id} />
               {sub.current_period_end && (
                 <InfoRow
-                  label="Próxima cobrança"
+                  label="Vencimento do plano"
                   value={new Date(sub.current_period_end).toLocaleDateString('pt-BR')}
                 />
               )}
