@@ -152,3 +152,22 @@ export async function archivePost(id: string, slug: string): Promise<void> {
 
   revalidateBlog(slug)
 }
+
+// ─── Excluir post (void — compatível com form action) ──────────────────────────
+
+export async function deletePost(id: string, slug: string): Promise<void> {
+  await requireAdminSession()
+  const supabase = createBlogAdminClient()
+
+  const { error } = await supabase
+    .from('posts')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('[deletePost]', error.message)
+    return
+  }
+
+  revalidateBlog(slug)
+}

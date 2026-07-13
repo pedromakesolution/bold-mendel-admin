@@ -1,7 +1,10 @@
 import Link from 'next/link'
-import { Plus, Pencil, Archive, Globe } from 'lucide-react'
+import { Plus, Pencil, Archive, Globe, ExternalLink, Search } from 'lucide-react'
 import { createBlogAdminClient, type Post } from '@/lib/blog-admin-client'
-import { publishPost, archivePost } from '@/app/actions/blog'
+import { publishPost, archivePost, deletePost } from '@/app/actions/blog'
+import { DeletePostButton } from './DeletePostButton'
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://freeladock.com.br'
 
 // Revalida a listagem a cada 60s no admin para capturar mudanças externas
 export const revalidate = 60
@@ -12,12 +15,21 @@ const STATUS_BADGE: Record<Post['status'], { label: string; className: string }>
   archived:  { label: 'Arquivado', className: 'bg-yellow-900 text-yellow-300'   },
 }
 
-export default async function BlogListPage() {
+export default async function BlogListPage(props: { searchParams: Promise<{ q?: string }> }) {
+  const searchParams = await props.searchParams;
+  const q = searchParams?.q || '';
+
   const supabase = createBlogAdminClient()
-  const { data: posts } = await supabase
+  let query = supabase
     .from('posts')
     .select('id, slug, title, status, published_at, created_at')
     .order('created_at', { ascending: false })
+
+  if (q) {
+    query = query.or(`title.ilike.%${q}%,slug.ilike.%${q}%,excerpt.ilike.%${q}%,content_md.ilike.%${q}%`)
+  }
+
+  const { data: posts } = await query
 
   return (
     <div className="p-6 md:p-8">
@@ -29,13 +41,25 @@ export default async function BlogListPage() {
             {posts?.length ?? 0} post{posts?.length !== 1 ? 's' : ''} no total
           </p>
         </div>
-        <Link
-          href="/blog/novo"
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
-        >
-          <Plus className="h-4 w-4" />
-          Novo Post
-        </Link>
+        <div className="flex items-center gap-3">
+          <form method="GET" action="/blog" className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+            <input
+              type="text"
+              name="q"
+              defaultValue={q}
+              placeholder="Pesquisar artigos, palavras-chave..."
+              className="w-72 rounded-lg border border-zinc-700 bg-zinc-800 py-2.5 pl-9 pr-4 text-sm text-zinc-100 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </form>
+          <Link
+            href="/blog/novo"
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
+          >
+            <Plus className="h-4 w-4" />
+            Novo Post
+          </Link>
+        </div>
       </div>
 
       {/* Tabela */}
@@ -83,6 +107,19 @@ export default async function BlogListPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
+                        {/* Abrir artigo (novo) */}
+                        {post.status === 'published' && (
+                          <a
+                            href={`${SITE_URL}/blog/${post.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Abrir no site"
+                            className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-blue-900/50 hover:text-blue-400"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        )}
+
                         {/* Editar */}
                         <Link
                           href={`/blog/${post.id}/editar`}
@@ -92,8 +129,8 @@ export default async function BlogListPage() {
                           <Pencil className="h-4 w-4" />
                         </Link>
 
-                        {/* Publicar (só se for draft) */}
-                        {post.status === 'draft' && (
+                        {/* Publicar (só se for draft ou arquivado) */}
+                        {post.status !== 'published' && (
                           <form action={publishPost.bind(null, post.id, post.slug)}>
                             <button
                               type="submit"
@@ -117,6 +154,11 @@ export default async function BlogListPage() {
                             </button>
                           </form>
                         )}
+
+                        {/* Excluir */}
+                        <form action={deletePost.bind(null, post.id, post.slug)}>
+                          <DeletePostButton />
+                        </form>
                       </div>
                     </td>
                   </tr>
