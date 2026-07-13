@@ -10,6 +10,7 @@ import {
   LogOut,
   Shield,
   LifeBuoy,
+  FileText,
 } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
 import { useTicketCountStore } from '@/stores/ticketCountStore'
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: '/finance',   label: 'Financeiro',shortLabel: 'Financeiro',icon: BarChart2        },
   { href: '/audit',     label: 'Auditoria', shortLabel: 'Auditoria', icon: ClipboardList    },
   { href: '/support',   label: 'Suporte',   shortLabel: 'Suporte',   icon: LifeBuoy         },
+  { href: '/blog',      label: 'Blog',      shortLabel: 'Blog',      icon: FileText         },
 ] as const
 
 export default function AdminSidebar({
