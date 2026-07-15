@@ -14,11 +14,24 @@ export default function NovoBlogPostPage() {
   const [isPending, startTransition] = useTransition()
   const [content, setContent] = useState('')
   const [coverUrl, setCoverUrl] = useState('')
-  const [uploading, setUploading] = useState(false)
-  const [slugManual, setSlugManual] = useState(false)
-  const [slug, setSlug] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  type UploadPhase = 'idle' | 'uploading' | 'processing' | 'done'
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle')
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [processingProgress, setProcessingProgress] = useState(0)
+
+  // Simulador de progresso para o processamento no servidor (Sharp/Supabase)
+  import { useEffect } from 'react' // Import adicionado acima via hook de lint se necessário, mas vou usar React.useEffect
+
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (uploadPhase === 'processing') {
+      setProcessingProgress(0)
+      interval = setInterval(() => {
+        setProcessingProgress(prev => (prev >= 95 ? prev : prev + Math.floor(Math.random() * 15) + 5))
+      }, 100)
+    }
+    return () => clearInterval(interval)
+  }, [uploadPhase])
 
   // Auto-gera slug a partir do título
   function handleTitleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -34,20 +47,66 @@ export default function NovoBlogPostPage() {
     }
   }
 
-  // Upload de imagem de capa
-  async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  // Upload de imagem de capa com progresso
+  function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    setUploading(true)
+
+    setUploadPhase('uploading')
+    setUploadProgress(0)
+    setError(null)
+
     const fd = new FormData()
     fd.append('file', file)
-    const result = await uploadCoverImage(fd)
-    setUploading(false)
-    if ('error' in result) {
-      setError(result.error)
-    } else {
-      setCoverUrl(result.url)
+
+    const xhr = new XMLHttpRequest()
+    
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100)
+        setUploadProgress(percent)
+        if (percent >= 100) {
+          setUploadPhase('processing')
+        }
+      }
     }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const result = JSON.parse(xhr.responseText)
+          if (result.error) {
+            setError(result.error)
+            setUploadPhase('idle')
+          } else {
+            setProcessingProgress(100)
+            setTimeout(() => {
+              setCoverUrl(result.url)
+              setUploadPhase('done')
+            }, 300) // pequeno delay para mostrar os 100%
+          }
+        } catch {
+          setError('Erro inesperado no servidor.')
+          setUploadPhase('idle')
+        }
+      } else {
+        try {
+          const result = JSON.parse(xhr.responseText)
+          setError(result.error || 'Erro ao enviar a imagem.')
+        } catch {
+          setError('Erro ao enviar a imagem.')
+        }
+        setUploadPhase('idle')
+      }
+    }
+
+    xhr.onerror = () => {
+      setError('Erro de conexão ao enviar a imagem.')
+      setUploadPhase('idle')
+    }
+
+    xhr.open('POST', '/api/upload-image')
+    xhr.send(fd)
   }
 
   // Submit do formulário
@@ -90,9 +149,9 @@ export default function NovoBlogPostPage() {
           </label>
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="group relative flex h-48 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-zinc-700 bg-zinc-800/50 transition-all hover:border-indigo-500 hover:bg-zinc-800/80"
+            className="group relative flex h-48 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-zinc-700 bg-zinc-800/50 transition-all hover:border-indigo-500 hover:bg-zinc-800/80 overflow-hidden"
           >
-            {coverUrl ? (
+            {coverUrl && uploadPhase !== 'uploading' && uploadPhase !== 'processing' ? (
               <div className="relative h-full w-full">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={coverUrl} alt="Capa" className="h-full w-full rounded-xl object-cover" />
@@ -101,12 +160,38 @@ export default function NovoBlogPostPage() {
                   WebP Otimizado
                 </div>
               </div>
-            ) : uploading ? (
-              <div className="flex flex-col items-center gap-3 text-indigo-400">
-                <Loader2 className="h-8 w-8 animate-spin" />
-                <div className="text-center">
-                  <span className="block text-sm font-medium">Processando imagem...</span>
-                  <span className="block text-xs text-indigo-400/70 mt-1">Convertendo para formato WebP e comprimindo</span>
+            ) : uploadPhase === 'uploading' || uploadPhase === 'processing' ? (
+              <div className="flex w-full max-w-xs flex-col gap-4 text-indigo-400 px-6">
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                  <span className="text-sm font-medium text-indigo-300">
+                    {uploadPhase === 'uploading' ? 'Enviando arquivo...' : 'Comprimindo e Otimizando...'}
+                  </span>
+                </div>
+                
+                {/* Barras de progresso */}
+                <div className="space-y-3 w-full">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-zinc-400">
+                      <span>Upload</span>
+                      <span className={uploadProgress === 100 ? 'text-emerald-400 font-medium' : ''}>{uploadProgress}%</span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                      <div className="h-full bg-indigo-500 transition-all duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-zinc-400">
+                      <span>Conversão WebP</span>
+                      <span className={processingProgress === 100 ? 'text-emerald-400 font-medium' : ''}>
+                        {uploadPhase === 'processing' ? `${processingProgress}%` : '0%'}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                      <div className="h-full bg-emerald-500 transition-all duration-300 ease-out" style={{ width: uploadPhase === 'processing' ? `${processingProgress}%` : '0%' }} />
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
