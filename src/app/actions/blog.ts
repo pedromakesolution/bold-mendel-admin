@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createBlogAdminClient } from '@/lib/blog-admin-client'
 import { requireAdminSession } from '@/lib/auth'
+import sharp from 'sharp'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -31,12 +32,27 @@ export async function uploadCoverImage(formData: FormData): Promise<{ url: strin
   const file = formData.get('file') as File | null
   if (!file) return { error: 'Nenhum arquivo enviado.' }
 
-  const ext = file.name.split('.').pop()
-  const filename = `covers/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  let buffer: Buffer
+  let mimeType = 'image/webp'
+  const randomStr = Math.random().toString(36).slice(2)
+  const filename = `covers/${Date.now()}-${randomStr}.webp`
+
+  try {
+    const arrayBuffer = await file.arrayBuffer()
+    const originalBuffer = Buffer.from(arrayBuffer)
+    
+    // Converte para WebP e comprime
+    buffer = await sharp(originalBuffer)
+      .webp({ quality: 80 })
+      .toBuffer()
+  } catch (err) {
+    console.error('Erro ao processar imagem:', err)
+    return { error: 'Falha ao processar a imagem.' }
+  }
 
   const { error } = await supabase.storage
     .from('blog-assets')
-    .upload(filename, file, { contentType: file.type, upsert: false })
+    .upload(filename, buffer, { contentType: mimeType, upsert: false })
 
   if (error) return { error: error.message }
 

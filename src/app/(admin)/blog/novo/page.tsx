@@ -90,18 +90,30 @@ export default function NovoBlogPostPage() {
           </label>
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="relative flex h-48 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-zinc-700 bg-zinc-800/50 transition-colors hover:border-indigo-500 hover:bg-zinc-800"
+            className="group relative flex h-48 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-zinc-700 bg-zinc-800/50 transition-all hover:border-indigo-500 hover:bg-zinc-800/80"
           >
             {coverUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={coverUrl} alt="Capa" className="h-full w-full rounded-xl object-cover" />
+              <div className="relative h-full w-full">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={coverUrl} alt="Capa" className="h-full w-full rounded-xl object-cover" />
+                <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-md bg-emerald-600/90 px-2.5 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-sm border border-emerald-500/30">
+                  <span className="flex h-1.5 w-1.5 rounded-full bg-white animate-pulse"></span>
+                  WebP Otimizado
+                </div>
+              </div>
             ) : uploading ? (
-              <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
+              <div className="flex flex-col items-center gap-3 text-indigo-400">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <div className="text-center">
+                  <span className="block text-sm font-medium">Processando imagem...</span>
+                  <span className="block text-xs text-indigo-400/70 mt-1">Convertendo para formato WebP e comprimindo</span>
+                </div>
+              </div>
             ) : (
-              <div className="flex flex-col items-center gap-2 text-zinc-500">
+              <div className="flex flex-col items-center gap-2 text-zinc-500 group-hover:text-indigo-400 transition-colors">
                 <ImagePlus className="h-8 w-8" />
-                <span className="text-sm">Clique para enviar imagem</span>
-                <span className="text-xs">JPG, PNG, WebP — máx. 5MB</span>
+                <span className="text-sm font-medium">Clique para enviar imagem</span>
+                <span className="text-xs opacity-75">JPG, PNG, WebP — máx. 5MB</span>
               </div>
             )}
           </div>
