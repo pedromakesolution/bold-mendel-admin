@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useTransition } from 'react'
+import { useState, useRef, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { ImagePlus, Loader2 } from 'lucide-react'
@@ -18,8 +18,10 @@ export default function EditarBlogPostClient({ post }: { post: Post }) {
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [processingProgress, setProcessingProgress] = useState(0)
-
-  import { useEffect } from 'react'
+  const [slug, setSlug] = useState(post.slug)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     let interval: NodeJS.Timeout

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useTransition } from 'react'
+import { useState, useRef, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { ImagePlus, Loader2 } from 'lucide-react'
@@ -18,11 +18,13 @@ export default function NovoBlogPostPage() {
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [processingProgress, setProcessingProgress] = useState(0)
+  const [slugManual, setSlugManual] = useState(false)
+  const [slug, setSlug] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Simulador de progresso para o processamento no servidor (Sharp/Supabase)
-  import { useEffect } from 'react' // Import adicionado acima via hook de lint se necessário, mas vou usar React.useEffect
-
-  React.useEffect(() => {
+  useEffect(() => {
     let interval: NodeJS.Timeout
     if (uploadPhase === 'processing') {
       setProcessingProgress(0)
