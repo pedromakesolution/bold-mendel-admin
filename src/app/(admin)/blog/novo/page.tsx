@@ -318,7 +318,7 @@ export default function NovoBlogPostPage() {
           <button
             type="button"
             onClick={() => handleSubmit(false)}
-            disabled={isPending || uploading}
+            disabled={isPending || uploadPhase === 'uploading' || uploadPhase === 'processing'}
             className="rounded-lg border border-zinc-700 bg-zinc-800 px-5 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700 disabled:opacity-50"
           >
             {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar Rascunho'}
@@ -326,7 +326,7 @@ export default function NovoBlogPostPage() {
           <button
             type="button"
             onClick={() => handleSubmit(true)}
-            disabled={isPending || uploading}
+            disabled={isPending || uploadPhase === 'uploading' || uploadPhase === 'processing'}
             className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
           >
             {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Publicar'}

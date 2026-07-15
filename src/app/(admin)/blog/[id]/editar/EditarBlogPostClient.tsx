@@ -282,7 +282,7 @@ export default function EditarBlogPostClient({ post }: { post: Post }) {
             className="rounded-lg border border-zinc-700 bg-zinc-800 px-5 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-700">
             Cancelar
           </button>
-          <button type="button" onClick={handleSubmit} disabled={isPending || uploading}
+          <button type="button" onClick={handleSubmit} disabled={isPending || uploadPhase === 'uploading' || uploadPhase === 'processing'}
             className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 flex items-center gap-2">
             {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Salvar Alterações
