@@ -54,6 +54,14 @@ export default function NovoBlogPostPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Validação de limite de 4.5MB (Vercel serverless limit)
+    const MAX_FILE_SIZE = 4.5 * 1024 * 1024 // 4.5 MB
+    if (file.size > MAX_FILE_SIZE) {
+      setError('A imagem excede o tamanho máximo de 4.5MB. Por favor, reduza a imagem antes de enviar.')
+      e.target.value = '' // Limpa o input
+      return
+    }
+
     setUploadPhase('uploading')
     setUploadProgress(0)
     setError(null)
@@ -200,7 +208,7 @@ export default function NovoBlogPostPage() {
               <div className="flex flex-col items-center gap-2 text-zinc-500 group-hover:text-indigo-400 transition-colors">
                 <ImagePlus className="h-8 w-8" />
                 <span className="text-sm font-medium">Clique para enviar imagem</span>
-                <span className="text-xs opacity-75">JPG, PNG, WebP — máx. 5MB</span>
+                <span className="text-xs opacity-75">JPG, PNG, WebP — máx. 4.5MB</span>
               </div>
             )}
           </div>
