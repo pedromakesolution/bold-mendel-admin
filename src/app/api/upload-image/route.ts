@@ -29,12 +29,13 @@ export async function POST(req: Request) {
     const randomStr = Math.random().toString(36).slice(2)
     const filename = `covers/${Date.now()}-${randomStr}.webp`
 
-    // Converter para ArrayBuffer puro para evitar falhas/travamentos com o Supabase JS em ambiente Node
-    const arrayBufferToUpload = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
+    // Converte o Buffer do Node para um Blob padrão da Web API.
+    // Isso evita que o Next.js/Supabase crie um arquivo corrompido de 0 bytes durante o fetch.
+    const fileBlob = new Blob([buffer], { type: mimeType })
 
     const { error } = await supabase.storage
       .from('blog-assets')
-      .upload(filename, arrayBufferToUpload, { contentType: mimeType, upsert: false })
+      .upload(filename, fileBlob, { contentType: mimeType, upsert: false })
 
     if (error) {
       console.error('[UploadImage API] Supabase error:', error.message)
