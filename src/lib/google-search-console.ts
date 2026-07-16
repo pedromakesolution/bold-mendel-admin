@@ -457,14 +457,14 @@ export async function inspectUrl(url: string) {
     const res = await searchconsole.urlInspection.index.inspect({
       requestBody: {
         inspectionUrl: url,
-        siteUrl: siteUrl.replace('sc-domain:', 'https://'), // Often siteUrl needs to be https:// for URL Inspection
+        siteUrl: siteUrl,
         languageCode: 'pt-BR',
       },
     });
     return res.data as UrlInspectionResult;
   } catch (error: any) {
-    console.error('Erro ao inspecionar URL no Google:', error?.message || error);
-    return null;
+    console.error('Erro ao inspecionar URL no Google:', error?.response?.data || error?.message || error);
+    throw new Error(`Google API Error (Inspection): ${error?.response?.data?.error?.message || error?.message || 'Erro desconhecido'}`);
   }
 }
 
@@ -481,7 +481,7 @@ export async function requestIndexing(url: string, type: 'URL_UPDATED' | 'URL_DE
     });
     return res.data;
   } catch (error: any) {
-    console.error('Erro ao solicitar indexação ao Google:', error?.message || error);
-    return null;
+    console.error('Erro ao solicitar indexação ao Google:', error?.response?.data || error?.message || error);
+    throw new Error(`Google API Error (Indexing): ${error?.response?.data?.error?.message || error?.message || 'Erro desconhecido'}`);
   }
 }
