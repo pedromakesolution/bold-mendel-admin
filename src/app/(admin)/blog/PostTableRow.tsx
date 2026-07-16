@@ -35,6 +35,11 @@ export function PostTableRow({ post, gsc }: { post: Post; gsc?: SearchConsoleMet
   const [isPending, startTransition] = useTransition()
   const badge = STATUS_BADGE[post.status as Post['status']]
 
+  // Local state to instantly update the UI after fetching from API
+  const [localVerdict, setLocalVerdict] = useState<string | null>(post.google_index_status)
+  const [localCheckedAt, setLocalCheckedAt] = useState<string | null>(post.google_index_checked_at)
+  const [localData, setLocalData] = useState<any>(null)
+
   // Index Status Mapping
   const renderIndexStatus = () => {
     if (isPending) {
@@ -46,13 +51,17 @@ export function PostTableRow({ post, gsc }: { post: Post; gsc?: SearchConsoleMet
       )
     }
 
-    if (!post.google_index_status) {
+    if (!localVerdict) {
       return (
         <button
           onClick={() => startTransition(async () => { 
             const res = await checkPostIndexStatus(post.id, post.slug)
             if (res.error) {
-              alert(`Erro: ${res.error}`)
+              alert(`Erro na API do Google: ${res.error}`)
+            } else {
+              setLocalVerdict(res.verdict || 'UNKNOWN')
+              setLocalCheckedAt(new Date().toISOString())
+              setLocalData(res.data) // Details like coverageState, etc.
             }
           })}
           className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-500/10 px-2 py-1 rounded-md"
@@ -63,18 +72,23 @@ export function PostTableRow({ post, gsc }: { post: Post; gsc?: SearchConsoleMet
       )
     }
 
-    if (post.google_index_status === 'PASS') {
+    // Prepare tooltip details if available
+    let details = `Verificado em ${new Date(localCheckedAt!).toLocaleDateString('pt-BR')}`
+    if (localData?.coverageState) details += `\nCobertura: ${localData.coverageState}`
+    if (localData?.lastCrawlTime) details += `\nÚltimo Crawl: ${new Date(localData.lastCrawlTime).toLocaleDateString('pt-BR')}`
+
+    if (localVerdict === 'PASS') {
       return (
-        <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md cursor-help" title={`Verificado em ${new Date(post.google_index_checked_at!).toLocaleDateString('pt-BR')}`}>
+        <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md cursor-help" title={details}>
           <CheckCircle2 className="h-3.5 w-3.5" />
           Indexado
         </span>
       )
     }
 
-    if (post.google_index_status === 'FAIL') {
+    if (localVerdict === 'FAIL') {
       return (
-        <span className="flex items-center gap-1.5 text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded-md cursor-help" title="A página possui erros críticos que impedem a indexação.">
+        <span className="flex items-center gap-1.5 text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded-md cursor-help" title={`${details}\nA página possui erros críticos que impedem a indexação.`}>
           <XCircle className="h-3.5 w-3.5" />
           Com Erros
         </span>
@@ -82,7 +96,7 @@ export function PostTableRow({ post, gsc }: { post: Post; gsc?: SearchConsoleMet
     }
 
     return (
-      <span className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded-md cursor-help" title={`Status: ${post.google_index_status}`}>
+      <span className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded-md cursor-help" title={`${details}\nStatus: ${localVerdict}`}>
         <AlertCircle className="h-3.5 w-3.5" />
         Pendente
       </span>

@@ -26,88 +26,72 @@ export default function EditarBlogPostClient({ post, metrics }: { post: Post; me
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [indexCheckPending, startIndexCheckTransition] = useTransition()
   const [indexSubmitPending, startIndexSubmitTransition] = useTransition()
-  const [indexStatus, setIndexStatus] = useState<{verdict?: string, checkedAt?: string}>({
+  const [indexStatus, setIndexStatus] = useState<{verdict?: string, checkedAt?: string, data?: any}>({
     verdict: post.google_index_status ?? undefined,
-    checkedAt: post.google_index_checked_at ?? undefined
+    checkedAt: post.google_index_checked_at ?? undefined,
+    data: null
   })
 
   useEffect(() => {
     let interval: NodeJS.Timeout
     if (uploadPhase === 'processing') {
-      setProcessingProgress(0)
       interval = setInterval(() => {
-        setProcessingProgress(prev => (prev >= 95 ? prev : prev + Math.floor(Math.random() * 15) + 5))
-      }, 100)
+        setUploadProgress((prev) => Math.min(prev + 10, 95))
+      }, 500)
     }
     return () => clearInterval(interval)
   }, [uploadPhase])
 
-  function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validação de limite de 4.5MB (Vercel serverless limit)
-    const MAX_FILE_SIZE = 4.5 * 1024 * 1024 // 4.5 MB
-    if (file.size > MAX_FILE_SIZE) {
-      setError('A imagem excede o tamanho máximo de 4.5MB. Por favor, reduza a imagem antes de enviar.')
-      e.target.value = '' // Limpa o input
-      return
-    }
-
     setUploadPhase('uploading')
-    setUploadProgress(0)
-    setError(null)
+    setUploadProgress(10)
 
     const fd = new FormData()
     fd.append('file', file)
 
     const xhr = new XMLHttpRequest()
-    
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percent = Math.round((event.loaded / event.total) * 100)
-        setUploadProgress(percent)
-        if (percent >= 100) {
+    xhr.open('POST', '/api/upload', true)
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const percent = Math.round((e.loaded / e.total) * 100)
+        if (percent < 100) {
+          setUploadProgress(percent)
+        } else {
           setUploadPhase('processing')
+          setUploadProgress(0)
         }
       }
     }
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
+    xhr.onload = async () => {
+      if (xhr.status === 200) {
         try {
           const result = JSON.parse(xhr.responseText)
-          if (result.error) {
-            setError(result.error)
-            setUploadPhase('idle')
-          } else {
-            setProcessingProgress(100)
-            setTimeout(() => {
-              setCoverUrl(result.url)
-              setUploadPhase('done')
-            }, 300)
-          }
-        } catch {
-          setError('Erro inesperado no servidor.')
+          setCoverUrl(result.url)
+          setUploadPhase('done')
+          
+          await uploadCoverImage(post.id, result.url)
+          router.refresh()
+          setTimeout(() => setUploadPhase('idle'), 2000)
+        } catch (err) {
+          setError('Erro ao processar imagem de capa')
           setUploadPhase('idle')
         }
       } else {
-        try {
-          const result = JSON.parse(xhr.responseText)
-          setError(result.error || 'Erro ao enviar a imagem.')
-        } catch {
-          setError('Erro ao enviar a imagem.')
-        }
+        setError('Erro no upload')
         setUploadPhase('idle')
       }
     }
 
     xhr.onerror = () => {
-      setError('Erro de conexão ao enviar a imagem.')
+      setError('Erro no upload')
       setUploadPhase('idle')
     }
 
-    xhr.open('POST', '/api/upload-image')
     xhr.send(fd)
   }
 
@@ -117,11 +101,12 @@ export default function EditarBlogPostClient({ post, metrics }: { post: Post; me
     startIndexCheckTransition(async () => {
       const result = await checkPostIndexStatus(post.id, slug)
       if (result.error) {
-        setError(result.error)
+        setError(`Google API Error: ${result.error}`)
       } else {
         setIndexStatus({
           verdict: result.verdict,
-          checkedAt: new Date().toISOString()
+          checkedAt: new Date().toISOString(),
+          data: result.data
         })
       }
     })
@@ -133,11 +118,10 @@ export default function EditarBlogPostClient({ post, metrics }: { post: Post; me
     startIndexSubmitTransition(async () => {
       const result = await submitPostToIndex(slug, 'URL_UPDATED')
       if (result.error) {
-        setError(result.error)
+        setError(`Google API Error: ${result.error}`)
       } else {
         setSuccess(true)
-        // Show success message or toast
-        alert('Solicitação de indexação enviada com sucesso!')
+        alert('Solicitação de indexação enviada com sucesso ao Google!')
       }
     })
   }
@@ -243,29 +227,37 @@ export default function EditarBlogPostClient({ post, metrics }: { post: Post; me
           </div>
         </div>
         
-        <div className="mt-4 flex items-center gap-4 border-t border-zinc-800/60 pt-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-zinc-400">Status atual:</span>
-            {indexStatus.verdict === 'PASS' && (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md">
-                <CheckCircle2 className="h-4 w-4" /> Indexado
-              </span>
-            )}
-            {indexStatus.verdict === 'FAIL' && (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-red-400 bg-red-500/10 px-2 py-1 rounded-md">
-                <AlertCircle className="h-4 w-4" /> Com Erros
-              </span>
-            )}
-            {!['PASS', 'FAIL'].includes(indexStatus.verdict || '') && (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-amber-400 bg-amber-500/10 px-2 py-1 rounded-md">
-                <AlertCircle className="h-4 w-4" /> {indexStatus.verdict || 'Não verificado'}
+        <div className="mt-4 flex flex-col gap-2 border-t border-zinc-800/60 pt-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-zinc-400">Status atual:</span>
+              {indexStatus.verdict === 'PASS' && (
+                <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md">
+                  <CheckCircle2 className="h-4 w-4" /> Indexado
+                </span>
+              )}
+              {indexStatus.verdict === 'FAIL' && (
+                <span className="flex items-center gap-1.5 text-sm font-medium text-red-400 bg-red-500/10 px-2 py-1 rounded-md">
+                  <AlertCircle className="h-4 w-4" /> Com Erros
+                </span>
+              )}
+              {!['PASS', 'FAIL'].includes(indexStatus.verdict || '') && (
+                <span className="flex items-center gap-1.5 text-sm font-medium text-amber-400 bg-amber-500/10 px-2 py-1 rounded-md">
+                  <AlertCircle className="h-4 w-4" /> {indexStatus.verdict || 'Não verificado'}
+                </span>
+              )}
+            </div>
+            {indexStatus.checkedAt && (
+              <span className="text-xs text-zinc-500">
+                Última verificação: {new Date(indexStatus.checkedAt).toLocaleString('pt-BR')}
               </span>
             )}
           </div>
-          {indexStatus.checkedAt && (
-            <span className="text-xs text-zinc-500">
-              Última verificação: {new Date(indexStatus.checkedAt).toLocaleString('pt-BR')}
-            </span>
+          {indexStatus.data && (
+            <div className="text-xs text-zinc-500 flex items-center gap-4 mt-1">
+              {indexStatus.data.coverageState && <span><strong className="text-zinc-400">Cobertura:</strong> {indexStatus.data.coverageState}</span>}
+              {indexStatus.data.lastCrawlTime && <span><strong className="text-zinc-400">Último Crawl:</strong> {new Date(indexStatus.data.lastCrawlTime).toLocaleString('pt-BR')}</span>}
+            </div>
           )}
         </div>
       </div>
