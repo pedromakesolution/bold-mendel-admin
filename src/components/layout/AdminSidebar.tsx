@@ -12,7 +12,7 @@ import {
   LifeBuoy,
   FileText,
   TrendingUp,
-  ChevronRight,
+  Globe2,
 } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
 import { useTicketCountStore } from '@/stores/ticketCountStore'
@@ -55,6 +55,13 @@ const NAV_ITEMS = [
     group: 'main',
   },
   {
+    href: '/site',
+    label: 'Site (GSC)',
+    shortLabel: 'Site',
+    icon: Globe2,
+    group: 'content',
+  },
+  {
     href: '/blog',
     label: 'Blog',
     shortLabel: 'Blog',
@@ -63,7 +70,7 @@ const NAV_ITEMS = [
   },
   {
     href: '/blog/seo',
-    label: 'SEO / GSC',
+    label: 'SEO Analytics',
     shortLabel: 'SEO',
     icon: TrendingUp,
     group: 'content',
