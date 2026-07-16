@@ -3,13 +3,14 @@
 import { useState, useRef, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { ImagePlus, Loader2 } from 'lucide-react'
+import { ImagePlus, Loader2, MousePointerClick, Eye, Target, BarChart3 } from 'lucide-react'
 import { updatePost, uploadCoverImage } from '@/app/actions/blog'
 import type { Post } from '@/lib/blog-admin-client'
+import type { SearchConsoleMetrics } from '@/lib/google-search-console'
 
 const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
 
-export default function EditarBlogPostClient({ post }: { post: Post }) {
+export default function EditarBlogPostClient({ post, metrics }: { post: Post; metrics?: SearchConsoleMetrics | null }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [content, setContent] = useState(post.content_md)
@@ -136,6 +137,39 @@ export default function EditarBlogPostClient({ post }: { post: Post }) {
           </p>
         </div>
       </div>
+
+      {metrics && (
+        <div className="mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+            <div className="flex items-center gap-2 text-zinc-400">
+              <MousePointerClick className="h-4 w-4" />
+              <h3 className="text-sm font-medium">Cliques (28d)</h3>
+            </div>
+            <p className="mt-2 text-xl font-bold text-zinc-100">{metrics.clicks.toLocaleString('pt-BR')}</p>
+          </div>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+            <div className="flex items-center gap-2 text-zinc-400">
+              <Eye className="h-4 w-4" />
+              <h3 className="text-sm font-medium">Impressões (28d)</h3>
+            </div>
+            <p className="mt-2 text-xl font-bold text-zinc-100">{metrics.impressions.toLocaleString('pt-BR')}</p>
+          </div>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+            <div className="flex items-center gap-2 text-zinc-400">
+              <Target className="h-4 w-4" />
+              <h3 className="text-sm font-medium">CTR Médio (28d)</h3>
+            </div>
+            <p className="mt-2 text-xl font-bold text-zinc-100">{(metrics.ctr * 100).toFixed(1)}%</p>
+          </div>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+            <div className="flex items-center gap-2 text-zinc-400">
+              <BarChart3 className="h-4 w-4" />
+              <h3 className="text-sm font-medium">Posição Média</h3>
+            </div>
+            <p className="mt-2 text-xl font-bold text-zinc-100">{metrics.position.toFixed(1)}</p>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 rounded-lg border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-300">

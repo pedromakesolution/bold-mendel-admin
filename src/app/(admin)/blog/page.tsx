@@ -1,23 +1,46 @@
 import Link from 'next/link'
-import { Plus, Pencil, Archive, Globe, ExternalLink, Search } from 'lucide-react'
+import {
+  Plus, Pencil, Archive, Globe, ExternalLink, Search,
+  BarChart3, MousePointerClick, Eye, Target, TrendingUp,
+  TrendingDown, Minus, ArrowUpRight, FileText,
+} from 'lucide-react'
 import { createBlogAdminClient, type Post } from '@/lib/blog-admin-client'
 import { publishPost, archivePost, deletePost } from '@/app/actions/blog'
 import { DeletePostButton } from './DeletePostButton'
+import { getSiteMetrics, getAllPostsMetrics, getTopQueries } from '@/lib/google-search-console'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'Blog — Freela Dock Admin' }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://freeladock.com.br'
 
-// Revalida a listagem a cada 60s no admin para capturar mudanças externas
 export const revalidate = 60
 
 const STATUS_BADGE: Record<Post['status'], { label: string; className: string }> = {
-  draft:     { label: 'Rascunho',  className: 'bg-zinc-700 text-zinc-300'   },
-  published: { label: 'Publicado', className: 'bg-emerald-900 text-emerald-300' },
-  archived:  { label: 'Arquivado', className: 'bg-yellow-900 text-yellow-300'   },
+  draft:     { label: 'Rascunho',  className: 'badge-slate'   },
+  published: { label: 'Publicado', className: 'badge-emerald' },
+  archived:  { label: 'Arquivado', className: 'badge-amber'   },
+}
+
+/** Classifica performance de cliques num badge */
+function PerformanceBadge({ clicks, impressions }: { clicks: number; impressions: number }) {
+  if (impressions === 0) return <span className="text-zinc-600 text-xs">—</span>
+  if (clicks >= 50)  return <span className="gsc-badge-excellent">{clicks.toLocaleString('pt-BR')}</span>
+  if (clicks >= 10)  return <span className="gsc-badge-good">{clicks.toLocaleString('pt-BR')}</span>
+  if (clicks > 0)    return <span className="gsc-badge-fair">{clicks.toLocaleString('pt-BR')}</span>
+  return <span className="text-zinc-600 text-xs">0</span>
+}
+
+/** Posição média com colorização */
+function PositionCell({ pos }: { pos: number }) {
+  if (pos === 0) return <span className="text-zinc-600 text-xs">—</span>
+  const color = pos <= 3 ? 'text-emerald-400' : pos <= 10 ? 'text-sky-400' : pos <= 20 ? 'text-amber-400' : 'text-zinc-500'
+  return <span className={`text-xs font-semibold tabular-nums ${color}`}>{pos.toFixed(1)}</span>
 }
 
 export default async function BlogListPage(props: { searchParams: Promise<{ q?: string }> }) {
-  const searchParams = await props.searchParams;
-  const q = searchParams?.q || '';
+  const searchParams = await props.searchParams
+  const q = searchParams?.q || ''
 
   const supabase = createBlogAdminClient()
   let query = supabase
@@ -29,32 +52,60 @@ export default async function BlogListPage(props: { searchParams: Promise<{ q?: 
     query = query.or(`title.ilike.%${q}%,slug.ilike.%${q}%,excerpt.ilike.%${q}%,content_md.ilike.%${q}%`)
   }
 
-  const { data: posts } = await query
+  // Busca dados em paralelo: posts + métricas site + métricas por artigo + top queries
+  const [{ data: posts }, metrics, allPostsMetrics, topQueries] = await Promise.all([
+    query,
+    getSiteMetrics(),
+    getAllPostsMetrics(),
+    getTopQueries(undefined, undefined, 10),
+  ])
+
+  const totalPosts = posts?.length ?? 0
+  const publishedPosts = posts?.filter(p => p.status === 'published').length ?? 0
 
   return (
-    <div className="p-6 md:p-8">
-      {/* Cabeçalho */}
-      <div className="mb-6 flex items-center justify-between">
+    <div className="p-4 md:p-8 animate-fade-in">
+      {/* ── Cabeçalho ── */}
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Blog</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            {posts?.length ?? 0} post{posts?.length !== 1 ? 's' : ''} no total
+          <div className="flex items-center gap-3 mb-1">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/15">
+              <FileText className="h-4 w-4 text-indigo-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-zinc-100">Blog</h1>
+          </div>
+          <p className="text-sm text-zinc-400 ml-12">
+            <span className="text-zinc-100 font-medium">{totalPosts}</span> posts no total ·{' '}
+            <span className="text-emerald-400 font-medium">{publishedPosts}</span> publicados
           </p>
         </div>
-        <div className="flex items-center gap-3">
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Link para análise SEO completa */}
+          <Link
+            href="/blog/seo"
+            className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-2.5 text-sm font-medium text-zinc-300 transition-all hover:border-indigo-500/50 hover:text-indigo-300"
+          >
+            <BarChart3 className="h-4 w-4" />
+            SEO Analytics
+            <ArrowUpRight className="h-3.5 w-3.5 opacity-60" />
+          </Link>
+
+          {/* Busca */}
           <form method="GET" action="/blog" className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
             <input
               type="text"
               name="q"
               defaultValue={q}
-              placeholder="Pesquisar artigos, palavras-chave..."
-              className="w-72 rounded-lg border border-zinc-700 bg-zinc-800 py-2.5 pl-9 pr-4 text-sm text-zinc-100 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="Buscar artigos..."
+              className="w-64 rounded-lg border border-zinc-700 bg-zinc-800 py-2.5 pl-9 pr-4 text-sm text-zinc-100 placeholder-zinc-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
             />
           </form>
+
           <Link
             href="/blog/novo"
-            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-indigo-500 hover:shadow-lg hover:shadow-indigo-500/25 active:scale-95"
           >
             <Plus className="h-4 w-4" />
             Novo Post
@@ -62,111 +113,262 @@ export default async function BlogListPage(props: { searchParams: Promise<{ q?: 
         </div>
       </div>
 
-      {/* Tabela */}
-      <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
-        {!posts?.length ? (
-          <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
-            <p className="text-lg">Nenhum post criado ainda.</p>
-            <Link href="/blog/novo" className="mt-3 text-sm text-indigo-400 hover:underline">
-              Criar primeiro post →
-            </Link>
+      {/* ── KPI Cards GSC ── */}
+      {metrics && (
+        <div className="mb-8 grid gap-4 grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              label: 'Cliques (28d)',
+              value: metrics.clicks.toLocaleString('pt-BR'),
+              icon: MousePointerClick,
+              accent: 'text-indigo-400',
+              bg: 'bg-indigo-500/10',
+              border: 'border-indigo-500/20',
+            },
+            {
+              label: 'Impressões (28d)',
+              value: metrics.impressions.toLocaleString('pt-BR'),
+              icon: Eye,
+              accent: 'text-sky-400',
+              bg: 'bg-sky-500/10',
+              border: 'border-sky-500/20',
+            },
+            {
+              label: 'CTR Médio',
+              value: `${(metrics.ctr * 100).toFixed(2)}%`,
+              icon: Target,
+              accent: 'text-emerald-400',
+              bg: 'bg-emerald-500/10',
+              border: 'border-emerald-500/20',
+            },
+            {
+              label: 'Posição Média',
+              value: metrics.position.toFixed(1),
+              icon: BarChart3,
+              accent: 'text-amber-400',
+              bg: 'bg-amber-500/10',
+              border: 'border-amber-500/20',
+            },
+          ].map(({ label, value, icon: Icon, accent, bg, border }) => (
+            <div key={label} className={`metric-card rounded-xl border ${border} bg-zinc-900/80 p-5 backdrop-blur-sm`}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
+                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${bg}`}>
+                  <Icon className={`h-4 w-4 ${accent}`} />
+                </span>
+              </div>
+              <p className={`text-2xl font-bold ${accent}`}>{value}</p>
+              <p className="mt-1 text-xs text-zinc-600">Google Search Console</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* ── Tabela de Posts (2/3) ── */}
+        <div className="lg:col-span-2">
+          <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/80 backdrop-blur-sm">
+            <div className="border-b border-zinc-800 px-5 py-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-zinc-200">Artigos</h2>
+              {allPostsMetrics.size > 0 && (
+                <span className="text-xs text-zinc-500">+ métricas GSC (28d)</span>
+              )}
+            </div>
+
+            {!posts?.length ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">
+                  <FileText className="h-6 w-6 text-zinc-500" />
+                </div>
+                <p className="text-zinc-400">Nenhum post criado ainda.</p>
+                <Link href="/blog/novo" className="mt-3 text-sm text-indigo-400 hover:underline">
+                  Criar primeiro post →
+                </Link>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-800 text-left text-xs uppercase tracking-wider text-zinc-500">
+                      <th className="px-4 py-3 font-medium">Título</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      {allPostsMetrics.size > 0 && (
+                        <>
+                          <th className="px-4 py-3 font-medium text-center">Cliques</th>
+                          <th className="px-4 py-3 font-medium text-center">Impressões</th>
+                          <th className="px-4 py-3 font-medium text-center">CTR</th>
+                          <th className="px-4 py-3 font-medium text-center">Pos.</th>
+                        </>
+                      )}
+                      <th className="px-4 py-3 font-medium text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/60">
+                    {posts.map((post) => {
+                      const badge = STATUS_BADGE[post.status as Post['status']]
+                      const gsc = allPostsMetrics.get(post.slug)
+
+                      return (
+                        <tr key={post.id} className="group table-row-hover">
+                          <td className="px-4 py-3">
+                            <div>
+                              <span className="block font-medium text-zinc-100 line-clamp-1 text-sm">
+                                {post.title}
+                              </span>
+                              <code className="text-[10px] text-zinc-600">{post.slug}</code>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`badge ${badge.className}`}>{badge.label}</span>
+                          </td>
+
+                          {allPostsMetrics.size > 0 && (
+                            <>
+                              <td className="px-4 py-3 text-center">
+                                <PerformanceBadge
+                                  clicks={gsc?.clicks ?? 0}
+                                  impressions={gsc?.impressions ?? 0}
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {gsc && gsc.impressions > 0
+                                  ? <span className="text-xs text-zinc-400 tabular-nums">{gsc.impressions.toLocaleString('pt-BR')}</span>
+                                  : <span className="text-zinc-600 text-xs">—</span>
+                                }
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {gsc && gsc.impressions > 0
+                                  ? <span className="text-xs text-zinc-400 tabular-nums">{(gsc.ctr * 100).toFixed(1)}%</span>
+                                  : <span className="text-zinc-600 text-xs">—</span>
+                                }
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <PositionCell pos={gsc?.position ?? 0} />
+                              </td>
+                            </>
+                          )}
+
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              {post.status === 'published' && (
+                                <a
+                                  href={`${SITE_URL}/blog/${post.slug}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="Abrir no site"
+                                  className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-blue-900/30 hover:text-blue-400"
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              )}
+                              <Link
+                                href={`/blog/${post.id}/editar`}
+                                title="Editar"
+                                className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Link>
+                              {post.status !== 'published' && (
+                                <form action={publishPost.bind(null, post.id, post.slug)}>
+                                  <button
+                                    type="submit"
+                                    title="Publicar"
+                                    className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-emerald-900/30 hover:text-emerald-400"
+                                  >
+                                    <Globe className="h-3.5 w-3.5" />
+                                  </button>
+                                </form>
+                              )}
+                              {post.status !== 'archived' && (
+                                <form action={archivePost.bind(null, post.id, post.slug)}>
+                                  <button
+                                    type="submit"
+                                    title="Arquivar"
+                                    className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-yellow-900/30 hover:text-yellow-400"
+                                  >
+                                    <Archive className="h-3.5 w-3.5" />
+                                  </button>
+                                </form>
+                              )}
+                              <form action={deletePost.bind(null, post.id, post.slug)}>
+                                <DeletePostButton />
+                              </form>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-800 text-left text-xs uppercase tracking-wider text-zinc-500">
-                <th className="px-4 py-3 font-medium">Título</th>
-                <th className="px-4 py-3 font-medium">Slug</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Publicado em</th>
-                <th className="px-4 py-3 font-medium text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800">
-              {posts.map((post) => {
-                const badge = STATUS_BADGE[post.status as Post['status']]
-                return (
-                  <tr key={post.id} className="group transition-colors hover:bg-zinc-800/50">
-                    <td className="px-4 py-3">
-                      <span className="font-medium text-zinc-100 line-clamp-1">{post.title}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">
-                        {post.slug}
-                      </code>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.className}`}>
-                        {badge.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-zinc-400">
-                      {post.published_at
-                        ? new Date(post.published_at).toLocaleDateString('pt-BR')
-                        : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        {/* Abrir artigo (novo) */}
-                        {post.status === 'published' && (
-                          <a
-                            href={`${SITE_URL}/blog/${post.slug}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Abrir no site"
-                            className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-blue-900/50 hover:text-blue-400"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        )}
+        </div>
 
-                        {/* Editar */}
-                        <Link
-                          href={`/blog/${post.id}/editar`}
-                          title="Editar"
-                          className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Link>
-
-                        {/* Publicar (só se for draft ou arquivado) */}
-                        {post.status !== 'published' && (
-                          <form action={publishPost.bind(null, post.id, post.slug)}>
-                            <button
-                              type="submit"
-                              title="Publicar"
-                              className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-emerald-900/50 hover:text-emerald-400"
-                            >
-                              <Globe className="h-4 w-4" />
-                            </button>
-                          </form>
-                        )}
-
-                        {/* Arquivar (só se não for archived) */}
-                        {post.status !== 'archived' && (
-                          <form action={archivePost.bind(null, post.id, post.slug)}>
-                            <button
-                              type="submit"
-                              title="Arquivar"
-                              className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-yellow-900/50 hover:text-yellow-400"
-                            >
-                              <Archive className="h-4 w-4" />
-                            </button>
-                          </form>
-                        )}
-
-                        {/* Excluir */}
-                        <form action={deletePost.bind(null, post.id, post.slug)}>
-                          <DeletePostButton />
-                        </form>
+        {/* ── Sidebar: Top Queries (1/3) ── */}
+        <div className="flex flex-col gap-6">
+          {/* Top Queries */}
+          {topQueries.length > 0 && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 backdrop-blur-sm overflow-hidden">
+              <div className="border-b border-zinc-800 px-5 py-4 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-zinc-200">Top Queries (28d)</h2>
+                <Link href="/blog/seo" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                  Ver todas →
+                </Link>
+              </div>
+              <ul className="divide-y divide-zinc-800/60">
+                {topQueries.map((q, i) => (
+                  <li key={q.query} className="flex items-center gap-3 px-4 py-3 group hover:bg-zinc-800/30 transition-colors">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-zinc-500 bg-zinc-800">
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-zinc-200 truncate">{q.query}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-zinc-500">
+                          {q.clicks} cliques · pos. {q.position.toFixed(0)}
+                        </span>
                       </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
+                    </div>
+                    <div className="progress-track w-16">
+                      <div
+                        className="progress-fill"
+                        style={{ width: `${Math.min((q.clicks / (topQueries[0]?.clicks || 1)) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="px-4 py-3 border-t border-zinc-800">
+                <Link
+                  href="/blog/seo"
+                  className="flex items-center justify-center gap-2 text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  Analytics completo
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Stats */}
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-5 backdrop-blur-sm">
+            <h2 className="text-sm font-semibold text-zinc-200 mb-4">Resumo</h2>
+            <div className="space-y-3">
+              {[
+                { label: 'Publicados', value: posts?.filter(p => p.status === 'published').length ?? 0, color: 'bg-emerald-500' },
+                { label: 'Rascunhos', value: posts?.filter(p => p.status === 'draft').length ?? 0, color: 'bg-zinc-600' },
+                { label: 'Arquivados', value: posts?.filter(p => p.status === 'archived').length ?? 0, color: 'bg-amber-600' },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="flex items-center gap-3">
+                  <span className={`h-2 w-2 rounded-full ${color} shrink-0`} />
+                  <span className="flex-1 text-sm text-zinc-400">{label}</span>
+                  <span className="text-sm font-semibold text-zinc-100">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

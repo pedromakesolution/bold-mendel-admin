@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createBlogAdminClient } from '@/lib/blog-admin-client'
 import EditarBlogPostClient from './EditarBlogPostClient'
+import { getPostMetrics } from '@/lib/google-search-console'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -18,5 +19,10 @@ export default async function EditarBlogPostPage({ params }: Props) {
 
   if (error || !post) notFound()
 
-  return <EditarBlogPostClient post={post} />
+  let metrics = null
+  if (post.status === 'published') {
+    metrics = await getPostMetrics(post.slug)
+  }
+
+  return <EditarBlogPostClient post={post} metrics={metrics} />
 }
