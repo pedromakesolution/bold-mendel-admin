@@ -7,7 +7,7 @@ import { publishPost, archivePost, deletePost } from '@/app/actions/blog'
 import { checkPostIndexStatus } from '@/app/actions/indexing'
 import { DeletePostButton } from './DeletePostButton'
 import type { Post } from '@/lib/blog-admin-client'
-import type { PostGscMetric } from '@/lib/google-search-console'
+import type { SearchConsoleMetrics } from '@/lib/google-search-console'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://freeladock.com.br'
 
@@ -31,7 +31,7 @@ function PositionCell({ pos }: { pos: number }) {
   return <span className={`text-xs font-semibold tabular-nums ${color}`}>{pos.toFixed(1)}</span>
 }
 
-export function PostTableRow({ post, gsc }: { post: Post; gsc?: PostGscMetric }) {
+export function PostTableRow({ post, gsc }: { post: Post; gsc?: SearchConsoleMetrics }) {
   const [isPending, startTransition] = useTransition()
   const badge = STATUS_BADGE[post.status as Post['status']]
 
