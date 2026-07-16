@@ -95,10 +95,28 @@ export function PostTableRow({ post, gsc }: { post: Post; gsc?: SearchConsoleMet
       )
     }
 
+    if (localVerdict === 'PARTIAL') {
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded-md cursor-help" title={`${details}\nIndexada com ressalvas/alertas.`}>
+          <AlertCircle className="h-3.5 w-3.5" />
+          Parcial
+        </span>
+      )
+    }
+
+    if (localVerdict === 'NEUTRAL') {
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-zinc-400 bg-zinc-500/10 px-2 py-1 rounded-md cursor-help" title={`${details}\nA página não está indexada. Pode ser uma URL nova ou bloqueada por noindex.`}>
+          <AlertCircle className="h-3.5 w-3.5" />
+          Não Indexado
+        </span>
+      )
+    }
+
     return (
-      <span className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded-md cursor-help" title={`${details}\nStatus: ${localVerdict}`}>
+      <span className="flex items-center gap-1.5 text-xs text-zinc-400 bg-zinc-500/10 px-2 py-1 rounded-md cursor-help" title={`${details}\nStatus: ${localVerdict}`}>
         <AlertCircle className="h-3.5 w-3.5" />
-        Pendente
+        {localVerdict}
       </span>
     )
   }

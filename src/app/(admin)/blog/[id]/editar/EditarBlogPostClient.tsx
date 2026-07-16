@@ -258,8 +258,18 @@ export default function EditarBlogPostClient({ post, metrics }: { post: Post; me
                   <AlertCircle className="h-4 w-4" /> Com Erros
                 </span>
               )}
-              {!['PASS', 'FAIL'].includes(indexStatus.verdict || '') && (
+              {indexStatus.verdict === 'PARTIAL' && (
                 <span className="flex items-center gap-1.5 text-sm font-medium text-amber-400 bg-amber-500/10 px-2 py-1 rounded-md">
+                  <AlertCircle className="h-4 w-4" /> Parcial
+                </span>
+              )}
+              {indexStatus.verdict === 'NEUTRAL' && (
+                <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-400 bg-zinc-500/10 px-2 py-1 rounded-md">
+                  <AlertCircle className="h-4 w-4" /> Não Indexado
+                </span>
+              )}
+              {!['PASS', 'FAIL', 'PARTIAL', 'NEUTRAL'].includes(indexStatus.verdict || '') && (
+                <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-400 bg-zinc-500/10 px-2 py-1 rounded-md">
                   <AlertCircle className="h-4 w-4" /> {indexStatus.verdict || 'Não verificado'}
                 </span>
               )}
