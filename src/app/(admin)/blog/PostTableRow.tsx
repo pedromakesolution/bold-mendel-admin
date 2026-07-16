@@ -49,7 +49,12 @@ export function PostTableRow({ post, gsc }: { post: Post; gsc?: SearchConsoleMet
     if (!post.google_index_status) {
       return (
         <button
-          onClick={() => startTransition(async () => { await checkPostIndexStatus(post.id, post.slug) })}
+          onClick={() => startTransition(async () => { 
+            const res = await checkPostIndexStatus(post.id, post.slug)
+            if (res.error) {
+              alert(`Erro: ${res.error}`)
+            }
+          })}
           className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-500/10 px-2 py-1 rounded-md"
         >
           <SearchCheck className="h-3.5 w-3.5" />
