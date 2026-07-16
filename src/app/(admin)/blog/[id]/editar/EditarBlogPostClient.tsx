@@ -3,8 +3,9 @@
 import { useState, useRef, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { ImagePlus, Loader2, MousePointerClick, Eye, Target, BarChart3 } from 'lucide-react'
+import { ImagePlus, Loader2, MousePointerClick, Eye, Target, BarChart3, SearchCheck, Send, CheckCircle2, AlertCircle } from 'lucide-react'
 import { updatePost, uploadCoverImage } from '@/app/actions/blog'
+import { checkPostIndexStatus, submitPostToIndex } from '@/app/actions/indexing'
 import type { Post } from '@/lib/blog-admin-client'
 import type { SearchConsoleMetrics } from '@/lib/google-search-console'
 
@@ -23,6 +24,12 @@ export default function EditarBlogPostClient({ post, metrics }: { post: Post; me
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [indexCheckPending, startIndexCheckTransition] = useTransition()
+  const [indexSubmitPending, startIndexSubmitTransition] = useTransition()
+  const [indexStatus, setIndexStatus] = useState<{verdict?: string, checkedAt?: string}>({
+    verdict: post.google_index_status ?? undefined,
+    checkedAt: post.google_index_checked_at ?? undefined
+  })
 
   useEffect(() => {
     let interval: NodeJS.Timeout
@@ -104,6 +111,37 @@ export default function EditarBlogPostClient({ post, metrics }: { post: Post; me
     xhr.send(fd)
   }
 
+  function handleCheckIndex() {
+    setError(null)
+    setSuccess(false)
+    startIndexCheckTransition(async () => {
+      const result = await checkPostIndexStatus(post.id, slug)
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setIndexStatus({
+          verdict: result.verdict,
+          checkedAt: new Date().toISOString()
+        })
+      }
+    })
+  }
+
+  function handleSubmitToIndex() {
+    setError(null)
+    setSuccess(false)
+    startIndexSubmitTransition(async () => {
+      const result = await submitPostToIndex(slug, 'URL_UPDATED')
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setSuccess(true)
+        // Show success message or toast
+        alert('Solicitação de indexação enviada com sucesso!')
+      }
+    })
+  }
+
   function handleSubmit() {
     setError(null)
     setSuccess(false)
@@ -170,6 +208,67 @@ export default function EditarBlogPostClient({ post, metrics }: { post: Post; me
           </div>
         </div>
       )}
+
+      {/* Indexing Card */}
+      <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/80 p-5 backdrop-blur-sm">
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-zinc-100 mb-1">
+              <SearchCheck className="h-5 w-5 text-indigo-400" />
+              <h2 className="text-lg font-semibold">Indexação do Google</h2>
+            </div>
+            <p className="text-sm text-zinc-400">
+              Acompanhe e solicite o rastreamento desta página no Google.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleCheckIndex}
+              disabled={indexCheckPending}
+              className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-700 hover:text-white disabled:opacity-50"
+            >
+              {indexCheckPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <SearchCheck className="h-4 w-4" />}
+              Verificar Status
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitToIndex}
+              disabled={indexSubmitPending}
+              className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
+            >
+              {indexSubmitPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Solicitar Indexação
+            </button>
+          </div>
+        </div>
+        
+        <div className="mt-4 flex items-center gap-4 border-t border-zinc-800/60 pt-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-zinc-400">Status atual:</span>
+            {indexStatus.verdict === 'PASS' && (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md">
+                <CheckCircle2 className="h-4 w-4" /> Indexado
+              </span>
+            )}
+            {indexStatus.verdict === 'FAIL' && (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-red-400 bg-red-500/10 px-2 py-1 rounded-md">
+                <AlertCircle className="h-4 w-4" /> Com Erros
+              </span>
+            )}
+            {!['PASS', 'FAIL'].includes(indexStatus.verdict || '') && (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-amber-400 bg-amber-500/10 px-2 py-1 rounded-md">
+                <AlertCircle className="h-4 w-4" /> {indexStatus.verdict || 'Não verificado'}
+              </span>
+            )}
+          </div>
+          {indexStatus.checkedAt && (
+            <span className="text-xs text-zinc-500">
+              Última verificação: {new Date(indexStatus.checkedAt).toLocaleString('pt-BR')}
+            </span>
+          )}
+        </div>
+      </div>
 
       {error && (
         <div className="mb-6 rounded-lg border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-300">

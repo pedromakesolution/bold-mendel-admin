@@ -7,6 +7,7 @@ import {
 import { createBlogAdminClient, type Post } from '@/lib/blog-admin-client'
 import { publishPost, archivePost, deletePost } from '@/app/actions/blog'
 import { DeletePostButton } from './DeletePostButton'
+import { PostTableRow } from './PostTableRow'
 import { getSiteMetrics, getAllPostsMetrics, getTopQueries } from '@/lib/google-search-console'
 import type { Metadata } from 'next'
 
@@ -192,11 +193,11 @@ export default async function BlogListPage(props: { searchParams: Promise<{ q?: 
                     <tr className="border-b border-zinc-800 text-left text-xs uppercase tracking-wider text-zinc-500">
                       <th className="px-4 py-3 font-medium">Título</th>
                       <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium">Google Index</th>
                       {allPostsMetrics.size > 0 && (
                         <>
                           <th className="px-4 py-3 font-medium text-center">Cliques</th>
                           <th className="px-4 py-3 font-medium text-center">Impressões</th>
-                          <th className="px-4 py-3 font-medium text-center">CTR</th>
                           <th className="px-4 py-3 font-medium text-center">Pos.</th>
                         </>
                       )}
@@ -204,100 +205,13 @@ export default async function BlogListPage(props: { searchParams: Promise<{ q?: 
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-800/60">
-                    {posts.map((post) => {
-                      const badge = STATUS_BADGE[post.status as Post['status']]
-                      const gsc = allPostsMetrics.get(post.slug)
-
-                      return (
-                        <tr key={post.id} className="group table-row-hover">
-                          <td className="px-4 py-3">
-                            <div>
-                              <span className="block font-medium text-zinc-100 line-clamp-1 text-sm">
-                                {post.title}
-                              </span>
-                              <code className="text-[10px] text-zinc-600">{post.slug}</code>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`badge ${badge.className}`}>{badge.label}</span>
-                          </td>
-
-                          {allPostsMetrics.size > 0 && (
-                            <>
-                              <td className="px-4 py-3 text-center">
-                                <PerformanceBadge
-                                  clicks={gsc?.clicks ?? 0}
-                                  impressions={gsc?.impressions ?? 0}
-                                />
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                {gsc && gsc.impressions > 0
-                                  ? <span className="text-xs text-zinc-400 tabular-nums">{gsc.impressions.toLocaleString('pt-BR')}</span>
-                                  : <span className="text-zinc-600 text-xs">—</span>
-                                }
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                {gsc && gsc.impressions > 0
-                                  ? <span className="text-xs text-zinc-400 tabular-nums">{(gsc.ctr * 100).toFixed(1)}%</span>
-                                  : <span className="text-zinc-600 text-xs">—</span>
-                                }
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <PositionCell pos={gsc?.position ?? 0} />
-                              </td>
-                            </>
-                          )}
-
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-1">
-                              {post.status === 'published' && (
-                                <a
-                                  href={`${SITE_URL}/blog/${post.slug}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  title="Abrir no site"
-                                  className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-blue-900/30 hover:text-blue-400"
-                                >
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                </a>
-                              )}
-                              <Link
-                                href={`/blog/${post.id}/editar`}
-                                title="Editar"
-                                className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Link>
-                              {post.status !== 'published' && (
-                                <form action={publishPost.bind(null, post.id, post.slug)}>
-                                  <button
-                                    type="submit"
-                                    title="Publicar"
-                                    className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-emerald-900/30 hover:text-emerald-400"
-                                  >
-                                    <Globe className="h-3.5 w-3.5" />
-                                  </button>
-                                </form>
-                              )}
-                              {post.status !== 'archived' && (
-                                <form action={archivePost.bind(null, post.id, post.slug)}>
-                                  <button
-                                    type="submit"
-                                    title="Arquivar"
-                                    className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-yellow-900/30 hover:text-yellow-400"
-                                  >
-                                    <Archive className="h-3.5 w-3.5" />
-                                  </button>
-                                </form>
-                              )}
-                              <form action={deletePost.bind(null, post.id, post.slug)}>
-                                <DeletePostButton />
-                              </form>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
+                    {posts.map((post) => (
+                      <PostTableRow
+                        key={post.id}
+                        post={post as any}
+                        gsc={allPostsMetrics.get(post.slug)}
+                      />
+                    ))}
                   </tbody>
                 </table>
               </div>

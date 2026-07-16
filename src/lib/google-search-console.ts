@@ -85,7 +85,10 @@ const getAuthClient = () => {
 
   return new google.auth.GoogleAuth({
     credentials: { client_email: clientEmail, private_key: privateKey },
-    scopes: ['https://www.googleapis.com/auth/webmasters.readonly'],
+    scopes: [
+      'https://www.googleapis.com/auth/webmasters.readonly',
+      'https://www.googleapis.com/auth/indexing'
+    ],
   });
 };
 
@@ -426,3 +429,59 @@ export const getSiteDashboard = async (days = 28): Promise<SiteDashboardData | n
     return null;
   }
 };
+
+// ─────────────────────────────────────────────
+// Indexing & URL Inspection
+// ─────────────────────────────────────────────
+
+export interface UrlInspectionResult {
+  inspectionResult?: {
+    indexStatusResult?: {
+      verdict?: string;
+      coverageState?: string;
+      lastCrawlTime?: string;
+      robotstxtState?: string;
+      indexingState?: string;
+    };
+  };
+}
+
+export async function inspectUrl(url: string) {
+  const siteUrl = process.env.SEARCH_CONSOLE_SITE_URL;
+  if (!siteUrl) throw new Error('SEARCH_CONSOLE_SITE_URL is not configured.');
+
+  const auth = getAuthClient();
+  const searchconsole = google.searchconsole({ version: 'v1', auth });
+
+  try {
+    const res = await searchconsole.urlInspection.index.inspect({
+      requestBody: {
+        inspectionUrl: url,
+        siteUrl: siteUrl.replace('sc-domain:', 'https://'), // Often siteUrl needs to be https:// for URL Inspection
+        languageCode: 'pt-BR',
+      },
+    });
+    return res.data as UrlInspectionResult;
+  } catch (error: any) {
+    console.error('Erro ao inspecionar URL no Google:', error?.message || error);
+    return null;
+  }
+}
+
+export async function requestIndexing(url: string, type: 'URL_UPDATED' | 'URL_DELETED' = 'URL_UPDATED') {
+  const auth = getAuthClient();
+  const indexing = google.indexing({ version: 'v3', auth });
+
+  try {
+    const res = await indexing.urlNotifications.publish({
+      requestBody: {
+        url: url,
+        type: type,
+      },
+    });
+    return res.data;
+  } catch (error: any) {
+    console.error('Erro ao solicitar indexação ao Google:', error?.message || error);
+    return null;
+  }
+}
