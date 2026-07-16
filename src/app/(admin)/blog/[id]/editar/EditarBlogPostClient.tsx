@@ -4,7 +4,7 @@ import { useState, useRef, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { ImagePlus, Loader2, MousePointerClick, Eye, Target, BarChart3, SearchCheck, Send, CheckCircle2, AlertCircle } from 'lucide-react'
-import { updatePost, uploadCoverImage } from '@/app/actions/blog'
+import { updatePost } from '@/app/actions/blog'
 import { checkPostIndexStatus, submitPostToIndex } from '@/app/actions/indexing'
 import type { Post } from '@/lib/blog-admin-client'
 import type { SearchConsoleMetrics } from '@/lib/google-search-console'
@@ -35,63 +35,80 @@ export default function EditarBlogPostClient({ post, metrics }: { post: Post; me
   useEffect(() => {
     let interval: NodeJS.Timeout
     if (uploadPhase === 'processing') {
+      setProcessingProgress(0)
       interval = setInterval(() => {
-        setUploadProgress((prev) => Math.min(prev + 10, 95))
-      }, 500)
+        setProcessingProgress(prev => (prev >= 95 ? prev : prev + Math.floor(Math.random() * 15) + 5))
+      }, 100)
     }
     return () => clearInterval(interval)
   }, [uploadPhase])
 
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Validação de limite de 4.5MB (Vercel serverless limit)
+    const MAX_FILE_SIZE = 4.5 * 1024 * 1024 // 4.5 MB
+    if (file.size > MAX_FILE_SIZE) {
+      setError('A imagem excede o tamanho máximo de 4.5MB. Por favor, reduza a imagem antes de enviar.')
+      e.target.value = '' // Limpa o input
+      return
+    }
+
     setUploadPhase('uploading')
-    setUploadProgress(10)
+    setUploadProgress(0)
+    setError(null)
 
     const fd = new FormData()
     fd.append('file', file)
 
     const xhr = new XMLHttpRequest()
-    xhr.open('POST', '/api/upload', true)
-
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        const percent = Math.round((e.loaded / e.total) * 100)
-        if (percent < 100) {
-          setUploadProgress(percent)
-        } else {
+    
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100)
+        setUploadProgress(percent)
+        if (percent >= 100) {
           setUploadPhase('processing')
-          setUploadProgress(0)
         }
       }
     }
 
-    xhr.onload = async () => {
-      if (xhr.status === 200) {
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const result = JSON.parse(xhr.responseText)
-          setCoverUrl(result.url)
-          setUploadPhase('done')
-          
-          await uploadCoverImage(post.id, result.url)
-          router.refresh()
-          setTimeout(() => setUploadPhase('idle'), 2000)
-        } catch (err) {
-          setError('Erro ao processar imagem de capa')
+          if (result.error) {
+            setError(result.error)
+            setUploadPhase('idle')
+          } else {
+            setProcessingProgress(100)
+            setTimeout(() => {
+              setCoverUrl(result.url)
+              setUploadPhase('done')
+            }, 300)
+          }
+        } catch {
+          setError('Erro inesperado no servidor.')
           setUploadPhase('idle')
         }
       } else {
-        setError('Erro no upload')
+        try {
+          const result = JSON.parse(xhr.responseText)
+          setError(result.error || 'Erro ao enviar a imagem.')
+        } catch {
+          setError('Erro ao enviar a imagem.')
+        }
         setUploadPhase('idle')
       }
     }
 
     xhr.onerror = () => {
-      setError('Erro no upload')
+      setError('Erro de conexão ao enviar a imagem.')
       setUploadPhase('idle')
     }
 
+    xhr.open('POST', '/api/upload-image')
     xhr.send(fd)
   }
 
