@@ -1,6 +1,6 @@
 'use server'
 
-import { verifyAuth } from '@/lib/auth'
+import { requireAdminSession } from '@/lib/auth'
 import { inspectUrl, requestIndexing } from '@/lib/google-search-console'
 import { createBlogAdminClient } from '@/lib/blog-admin-client'
 import { revalidatePath } from 'next/cache'
@@ -9,8 +9,8 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://freeladock.com.br'
 
 export async function checkPostIndexStatus(postId: string, slug: string) {
   try {
-    const user = await verifyAuth()
-    if (!user) return { error: 'Não autorizado.' }
+    const session = await requireAdminSession()
+    if (!session) return { error: 'Não autorizado.' }
 
     const url = `${SITE_URL}/blog/${slug}`
     const result = await inspectUrl(url)
@@ -43,8 +43,8 @@ export async function checkPostIndexStatus(postId: string, slug: string) {
 
 export async function submitPostToIndex(slug: string, type: 'URL_UPDATED' | 'URL_DELETED' = 'URL_UPDATED') {
   try {
-    const user = await verifyAuth()
-    if (!user) return { error: 'Não autorizado.' }
+    const session = await requireAdminSession()
+    if (!session) return { error: 'Não autorizado.' }
 
     const url = `${SITE_URL}/blog/${slug}`
     const result = await requestIndexing(url, type)
