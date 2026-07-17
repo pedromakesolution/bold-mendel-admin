@@ -359,7 +359,11 @@ export async function hardDeleteUser(userId: string) {
 
   if (authError) {
     console.error('[hardDeleteUser] Auth delete failed:', authError)
-    return { error: 'Falha ao excluir usuário na autenticação: ' + authError.message }
+    let errorMessage = authError.message
+    if (!errorMessage || errorMessage === '{}' || errorMessage === '[object Object]') {
+      errorMessage = 'O usuário possui registros dependentes (como contratos ou faturas) e não pode ser excluído permanentemente.'
+    }
+    return { error: 'Falha ao excluir usuário na autenticação: ' + errorMessage }
   }
 
   // 4. Fallback: manually delete from profiles if no cascade
