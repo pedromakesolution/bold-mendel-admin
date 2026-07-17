@@ -23,6 +23,13 @@ function revalidateBlog(slug?: string) {
   if (slug) revalidatePath(`/blog/${slug}`)
 }
 
+function pingSitemap() {
+  // Dispara assincronamente sem bloquear a thread
+  fetch('https://www.google.com/ping?sitemap=https://freeladock.com.br/sitemap.xml')
+    .then((res) => console.log('[pingSitemap] Success:', res.status))
+    .catch((err) => console.error('[pingSitemap] Error:', err))
+}
+
 // ─── Upload de imagem de capa ─────────────────────────────────────────────────
 
 export async function uploadCoverImage(formData: FormData): Promise<{ url: string } | { error: string }> {
@@ -96,6 +103,8 @@ export async function createPost(formData: FormData): Promise<{ id: string } | {
   if (error) return { error: error.message }
 
   revalidateBlog(slug)
+  if (publish) pingSitemap()
+  
   return { id: data.id }
 }
 
@@ -148,6 +157,14 @@ export async function publishPost(id: string, slug: string): Promise<void> {
   }
 
   revalidateBlog(slug)
+  pingSitemap()
+  
+  // Solicita indexação via API no Google automaticamente
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://freeladock.com.br';
+  import('@/lib/google-search-console')
+    .then(({ requestIndexing }) => requestIndexing(`${SITE_URL}/blog/${slug}`, 'URL_UPDATED'))
+    .then(() => console.log('[publishPost] Fast Indexing Requested for', slug))
+    .catch(err => console.error('[publishPost] Fast Indexing Error:', err));
 }
 
 // ─── Arquivar post (void — compatível com form action) ──────────────────────────
@@ -167,6 +184,7 @@ export async function archivePost(id: string, slug: string): Promise<void> {
   }
 
   revalidateBlog(slug)
+  pingSitemap()
 }
 
 // ─── Excluir post (void — compatível com form action) ──────────────────────────
@@ -186,4 +204,5 @@ export async function deletePost(id: string, slug: string): Promise<void> {
   }
 
   revalidateBlog(slug)
+  pingSitemap()
 }
