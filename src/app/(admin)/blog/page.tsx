@@ -56,7 +56,7 @@ export default async function BlogListPage(props: { searchParams: Promise<{ q?: 
   }
 
   // Busca dados em paralelo: posts + métricas site + métricas por artigo + top queries + cota diária
-  const [{ data: posts }, metrics, allPostsMetrics, topQueries, dailyIndexingCount] = await Promise.all([
+  const [postsRes, metrics, allPostsMetrics, topQueries, dailyIndexingCount] = await Promise.all([
     query,
     getSiteMetrics(),
     getAllPostsMetrics(),
@@ -64,6 +64,11 @@ export default async function BlogListPage(props: { searchParams: Promise<{ q?: 
     getDailyIndexingCount(),
   ])
 
+  if (postsRes.error) {
+    console.error('Erro ao buscar posts no Supabase:', postsRes.error.message)
+  }
+
+  const posts = postsRes.data
   const totalPosts = posts?.length ?? 0
   const publishedPosts = posts?.filter(p => p.status === 'published').length ?? 0
 
