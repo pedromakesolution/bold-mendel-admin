@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { Pencil, Globe, Archive, ExternalLink, Loader2, SearchCheck, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
+import { Pencil, Globe, Archive, ExternalLink, Loader2, SearchCheck, CheckCircle2, XCircle, AlertCircle, Zap } from 'lucide-react'
 import { publishPost, archivePost, deletePost } from '@/app/actions/blog'
 import { checkPostIndexStatus } from '@/app/actions/indexing'
 import { DeletePostButton } from './DeletePostButton'
@@ -31,7 +31,17 @@ function PositionCell({ pos }: { pos: number }) {
   return <span className={`text-xs font-semibold tabular-nums ${color}`}>{pos.toFixed(1)}</span>
 }
 
-export function PostTableRow({ post, gsc }: { post: Post; gsc?: SearchConsoleMetrics }) {
+export function PostTableRow({ 
+  post, 
+  gsc,
+  isSelected,
+  onToggleSelect,
+}: { 
+  post: Post; 
+  gsc?: SearchConsoleMetrics;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string, slug: string) => void;
+}) {
   const [isPending, startTransition] = useTransition()
   const badge = STATUS_BADGE[post.status as Post['status']]
 
@@ -122,13 +132,32 @@ export function PostTableRow({ post, gsc }: { post: Post; gsc?: SearchConsoleMet
   }
 
   return (
-    <tr className="group table-row-hover">
+    <tr className={`group table-row-hover ${isSelected ? 'bg-indigo-500/5' : ''}`}>
+      {onToggleSelect && (
+        <td className="px-4 py-3 w-10">
+          <input 
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(post.id, post.slug)}
+            className="rounded border-zinc-700 bg-zinc-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-zinc-900"
+          />
+        </td>
+      )}
       <td className="px-4 py-3">
         <div>
           <span className="block font-medium text-zinc-100 line-clamp-1 text-sm">
             {post.title}
           </span>
-          <code className="text-[10px] text-zinc-600">{post.slug}</code>
+          <code className="text-[10px] text-zinc-600 block mt-0.5">{post.slug}</code>
+          {post.google_index_requested_at && (
+            <span 
+              className="inline-flex items-center gap-1 mt-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-medium text-amber-400 border border-amber-500/15 cursor-help"
+              title={`Fast Indexing solicitado em ${new Date(post.google_index_requested_at).toLocaleString('pt-BR')}`}
+            >
+              <Zap className="h-2.5 w-2.5 fill-amber-400" />
+              Indexação Solicitada ({new Date(post.google_index_requested_at).toLocaleDateString('pt-BR')})
+            </span>
+          )}
         </div>
       </td>
       <td className="px-4 py-3">

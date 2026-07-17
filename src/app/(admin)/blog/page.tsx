@@ -2,12 +2,14 @@ import Link from 'next/link'
 import {
   Plus, Pencil, Archive, Globe, ExternalLink, Search,
   BarChart3, MousePointerClick, Eye, Target, TrendingUp,
-  TrendingDown, Minus, ArrowUpRight, FileText,
+  TrendingDown, Minus, ArrowUpRight, FileText, Zap,
 } from 'lucide-react'
 import { createBlogAdminClient, type Post } from '@/lib/blog-admin-client'
 import { publishPost, archivePost, deletePost } from '@/app/actions/blog'
+import { getDailyIndexingCount } from '@/app/actions/indexing'
 import { DeletePostButton } from './DeletePostButton'
 import { PostTableRow } from './PostTableRow'
+import { BlogTableClient, type PostWithMetrics } from './BlogTableClient'
 import { getSiteMetrics, getAllPostsMetrics, getTopQueries } from '@/lib/google-search-console'
 import type { Metadata } from 'next'
 
@@ -46,19 +48,20 @@ export default async function BlogListPage(props: { searchParams: Promise<{ q?: 
   const supabase = createBlogAdminClient()
   let query = supabase
     .from('posts')
-    .select('id, slug, title, status, published_at, created_at')
+    .select('id, slug, title, status, published_at, created_at, google_index_status, google_index_checked_at, google_index_requested_at')
     .order('created_at', { ascending: false })
 
   if (q) {
     query = query.or(`title.ilike.%${q}%,slug.ilike.%${q}%,excerpt.ilike.%${q}%,content_md.ilike.%${q}%`)
   }
 
-  // Busca dados em paralelo: posts + métricas site + métricas por artigo + top queries
-  const [{ data: posts }, metrics, allPostsMetrics, topQueries] = await Promise.all([
+  // Busca dados em paralelo: posts + métricas site + métricas por artigo + top queries + cota diária
+  const [{ data: posts }, metrics, allPostsMetrics, topQueries, dailyIndexingCount] = await Promise.all([
     query,
     getSiteMetrics(),
     getAllPostsMetrics(),
     getTopQueries(undefined, undefined, 10),
+    getDailyIndexingCount(),
   ])
 
   const totalPosts = posts?.length ?? 0
@@ -114,56 +117,85 @@ export default async function BlogListPage(props: { searchParams: Promise<{ q?: 
         </div>
       </div>
 
-      {/* ── KPI Cards GSC ── */}
-      {metrics && (
-        <div className="mb-8 grid gap-4 grid-cols-2 lg:grid-cols-4">
-          {[
-            {
-              label: 'Cliques (28d)',
-              value: metrics.clicks.toLocaleString('pt-BR'),
-              icon: MousePointerClick,
-              accent: 'text-indigo-400',
-              bg: 'bg-indigo-500/10',
-              border: 'border-indigo-500/20',
-            },
-            {
-              label: 'Impressões (28d)',
-              value: metrics.impressions.toLocaleString('pt-BR'),
-              icon: Eye,
-              accent: 'text-sky-400',
-              bg: 'bg-sky-500/10',
-              border: 'border-sky-500/20',
-            },
-            {
-              label: 'CTR Médio',
-              value: `${(metrics.ctr * 100).toFixed(2)}%`,
-              icon: Target,
-              accent: 'text-emerald-400',
-              bg: 'bg-emerald-500/10',
-              border: 'border-emerald-500/20',
-            },
-            {
-              label: 'Posição Média',
-              value: metrics.position.toFixed(1),
-              icon: BarChart3,
-              accent: 'text-amber-400',
-              bg: 'bg-amber-500/10',
-              border: 'border-amber-500/20',
-            },
-          ].map(({ label, value, icon: Icon, accent, bg, border }) => (
-            <div key={label} className={`metric-card rounded-xl border ${border} bg-zinc-900/80 p-5 backdrop-blur-sm`}>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
-                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${bg}`}>
-                  <Icon className={`h-4 w-4 ${accent}`} />
-                </span>
-              </div>
-              <p className={`text-2xl font-bold ${accent}`}>{value}</p>
-              <p className="mt-1 text-xs text-zinc-600">Google Search Console</p>
+      {/* ── KPI Cards GSC & Quota ── */}
+      <div className="mb-8 grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        {metrics && [
+          {
+            label: 'Cliques (28d)',
+            value: metrics.clicks.toLocaleString('pt-BR'),
+            icon: MousePointerClick,
+            accent: 'text-indigo-400',
+            bg: 'bg-indigo-500/10',
+            border: 'border-indigo-500/20',
+          },
+          {
+            label: 'Impressões (28d)',
+            value: metrics.impressions.toLocaleString('pt-BR'),
+            icon: Eye,
+            accent: 'text-sky-400',
+            bg: 'bg-sky-500/10',
+            border: 'border-sky-500/20',
+          },
+          {
+            label: 'CTR Médio',
+            value: `${(metrics.ctr * 100).toFixed(2)}%`,
+            icon: Target,
+            accent: 'text-emerald-400',
+            bg: 'bg-emerald-500/10',
+            border: 'border-emerald-500/20',
+          },
+          {
+            label: 'Posição Média',
+            value: metrics.position.toFixed(1),
+            icon: BarChart3,
+            accent: 'text-amber-400',
+            bg: 'bg-amber-500/10',
+            border: 'border-amber-500/20',
+          },
+        ].map(({ label, value, icon: Icon, accent, bg, border }) => (
+          <div key={label} className={`metric-card rounded-xl border ${border} bg-zinc-900/80 p-5 backdrop-blur-sm`}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
+              <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${bg}`}>
+                <Icon className={`h-4 w-4 ${accent}`} />
+              </span>
             </div>
-          ))}
-        </div>
-      )}
+            <p className={`text-2xl font-bold ${accent}`}>{value}</p>
+            <p className="mt-1 text-xs text-zinc-600">Google Search Console</p>
+          </div>
+        ))}
+
+        {/* Quota Card */}
+        {(() => {
+          const quotaPct = Math.min((dailyIndexingCount / 200) * 100, 100);
+          const quotaColor = 
+            dailyIndexingCount >= 180 
+              ? { text: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20', progress: 'bg-rose-500' }
+              : dailyIndexingCount >= 120
+              ? { text: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', progress: 'bg-amber-500' }
+              : { text: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20', progress: 'bg-violet-500' };
+
+          return (
+            <div className={`metric-card rounded-xl border ${quotaColor.border} bg-zinc-900/80 p-5 backdrop-blur-sm flex flex-col justify-between`}>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Cota Index (Hoje)</p>
+                  <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${quotaColor.bg}`}>
+                    <Zap className={`h-4 w-4 ${quotaColor.text} fill-current`} />
+                  </span>
+                </div>
+                <p className={`text-2xl font-bold ${quotaColor.text}`}>{dailyIndexingCount} <span className="text-sm text-zinc-500 font-normal">/ 200</span></p>
+              </div>
+              <div className="mt-4">
+                <div className="h-1.5 w-full rounded-full bg-zinc-800 overflow-hidden">
+                  <div className={`h-full ${quotaColor.progress} transition-all duration-500`} style={{ width: `${quotaPct}%` }} />
+                </div>
+                <p className="mt-1 text-[10px] text-zinc-500">Google Indexing API</p>
+              </div>
+            </div>
+          )
+        })()}
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* ── Tabela de Posts (2/3) ── */}
@@ -187,34 +219,13 @@ export default async function BlogListPage(props: { searchParams: Promise<{ q?: 
                 </Link>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-800 text-left text-xs uppercase tracking-wider text-zinc-500">
-                      <th className="px-4 py-3 font-medium">Título</th>
-                      <th className="px-4 py-3 font-medium">Status</th>
-                      <th className="px-4 py-3 font-medium">Google Index</th>
-                      {allPostsMetrics.size > 0 && (
-                        <>
-                          <th className="px-4 py-3 font-medium text-center">Cliques</th>
-                          <th className="px-4 py-3 font-medium text-center">Impressões</th>
-                          <th className="px-4 py-3 font-medium text-center">Pos.</th>
-                        </>
-                      )}
-                      <th className="px-4 py-3 font-medium text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800/60">
-                    {posts.map((post) => (
-                      <PostTableRow
-                        key={post.id}
-                        post={post as any}
-                        gsc={allPostsMetrics.get(post.slug)}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <BlogTableClient 
+                posts={posts.map(p => ({
+                  ...p,
+                  gsc: allPostsMetrics.get(p.slug)
+                })) as PostWithMetrics[]} 
+                hasMetrics={allPostsMetrics.size > 0} 
+              />
             )}
           </div>
         </div>

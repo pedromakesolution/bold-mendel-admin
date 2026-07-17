@@ -159,12 +159,11 @@ export async function publishPost(id: string, slug: string): Promise<void> {
   revalidateBlog(slug)
   pingSitemap()
   
-  // Solicita indexação via API no Google automaticamente
-  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://freeladock.com.br';
-  import('@/lib/google-search-console')
-    .then(({ requestIndexing }) => requestIndexing(`${SITE_URL}/blog/${slug}`, 'URL_UPDATED'))
-    .then(() => console.log('[publishPost] Fast Indexing Requested for', slug))
-    .catch(err => console.error('[publishPost] Fast Indexing Error:', err));
+  // Solicita indexação via API no Google automaticamente e loga no banco
+  import('@/app/actions/indexing')
+    .then(({ submitPostToIndex }) => submitPostToIndex(slug, 'URL_UPDATED'))
+    .then(() => console.log('[publishPost] Fast Indexing Auto-Triggered for', slug))
+    .catch(err => console.error('[publishPost] Fast Indexing Auto-Trigger Error:', err));
 }
 
 // ─── Arquivar post (void — compatível com form action) ──────────────────────────

@@ -44,4 +44,5 @@ export interface Post {
   author_id: string | null
   google_index_status: string | null
   google_index_checked_at: string | null
+  google_index_requested_at: string | null
 }
