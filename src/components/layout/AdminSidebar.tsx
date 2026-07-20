@@ -13,6 +13,7 @@ import {
   FileText,
   TrendingUp,
   Globe2,
+  Brain,
 } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
 import { useTicketCountStore } from '@/stores/ticketCountStore'
@@ -52,6 +53,13 @@ const NAV_ITEMS = [
     label: 'Suporte',
     shortLabel: 'Suporte',
     icon: LifeBuoy,
+    group: 'main',
+  },
+  {
+    href: '/ai-analytics',
+    label: 'IA Analytics',
+    shortLabel: 'IA',
+    icon: Brain,
     group: 'main',
   },
   {
