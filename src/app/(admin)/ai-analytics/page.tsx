@@ -1,6 +1,9 @@
 import React from 'react'
 import { getAILogs, getAIStats } from '@/app/actions/ai-analytics'
 import { Activity, Coins, DatabaseZap, Network, CheckCircle2, XCircle } from 'lucide-react'
+import { RefreshButton } from './RefreshButton'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata = {
   title: 'IA Analytics | Admin Portal',
@@ -27,7 +30,7 @@ export default async function AIAnalyticsPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex-none border-b border-zinc-800 bg-zinc-900/50 p-6">
+      <header className="flex-none flex items-center justify-between border-b border-zinc-800 bg-zinc-900/50 p-6">
         <div>
           <h1 className="text-2xl font-bold text-zinc-100 flex items-center gap-2">
             <Network className="h-6 w-6 text-indigo-400" />
@@ -37,6 +40,7 @@ export default async function AIAnalyticsPage() {
             Monitore o consumo de tokens, custos e desempenho do cache das APIs de IA.
           </p>
         </div>
+        <RefreshButton />
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
