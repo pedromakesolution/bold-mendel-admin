@@ -47,7 +47,7 @@ export default async function UserDetailPage({
   const { id } = await params
   const supabase = createAdminClient()
 
-  const [profileResult, subResult, countsResult, auditResult] =
+  const [profileResult, subResult, countsResult, auditResult, authUserResult] =
     await Promise.all([
       supabase
         .from('profiles')
@@ -72,6 +72,7 @@ export default async function UserDetailPage({
         .eq('target_id', id)
         .order('created_at', { ascending: false })
         .limit(20),
+      supabase.auth.admin.getUserById(id),
     ])
 
   if (profileResult.error || !profileResult.data) notFound()
@@ -81,10 +82,32 @@ export default async function UserDetailPage({
   const [projects, clients, contracts, proposals, aiMetricsResult] = countsResult
   const auditLogs = auditResult.data ?? []
   const aiMetrics = (aiMetricsResult.data as Record<string, number> | null)
+  const authUser = authUserResult.data?.user
 
   // Use the dedicated plan column (fast, no JSONB parsing needed)
   const plan = (profile as any).plan as string ?? 'free'
   const business = (profile.business_info as Record<string, any>) || {}
+
+  // Last login information
+  const lastLoginTimestamp = (profile as any).last_login_at || authUser?.last_sign_in_at
+  const lastLoginIp = (profile as any).last_login_ip || null
+  const lastLoginLocation = (profile as any).last_login_location || null
+
+  const formattedLastLoginDate = lastLoginTimestamp
+    ? new Date(lastLoginTimestamp).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
+    : null
+
+  const formattedLastLoginTime = lastLoginTimestamp
+    ? new Date(lastLoginTimestamp).toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+    : null
 
   const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
     <div className="flex items-center justify-between border-b border-zinc-800 py-3 last:border-0">
@@ -111,7 +134,7 @@ export default async function UserDetailPage({
         </span>
       </div>
 
-      <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-2 xl:grid-cols-4">
         {/* Profile Info */}
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
           <h2 className="mb-3 text-sm font-semibold text-zinc-300">Perfil</h2>
@@ -129,6 +152,33 @@ export default async function UserDetailPage({
               value={new Date(profile.deleted_at).toLocaleDateString('pt-BR')}
             />
           )}
+        </div>
+
+        {/* Último Login Info */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-300">Último Acesso</h2>
+          <InfoRow
+            label="Data"
+            value={formattedLastLoginDate || <span className="text-zinc-500">Nunca acessou</span>}
+          />
+          <InfoRow
+            label="Horário"
+            value={formattedLastLoginTime || <span className="text-zinc-500">—</span>}
+          />
+          <InfoRow
+            label="Local"
+            value={lastLoginLocation || <span className="text-zinc-500">Não registrado</span>}
+          />
+          <InfoRow
+            label="Endereço IP"
+            value={
+              lastLoginIp ? (
+                <span className="font-mono text-xs text-zinc-300">{lastLoginIp}</span>
+              ) : (
+                <span className="text-zinc-500">Não registrado</span>
+              )
+            }
+          />
         </div>
 
         {/* Subscription */}
