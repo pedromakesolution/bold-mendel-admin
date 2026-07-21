@@ -98,6 +98,7 @@ export default async function UserDetailPage({
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
+        timeZone: 'America/Sao_Paulo',
       })
     : null
 
@@ -106,6 +107,7 @@ export default async function UserDetailPage({
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
+        timeZone: 'America/Sao_Paulo',
       })
     : null
 
@@ -143,13 +145,13 @@ export default async function UserDetailPage({
           <InfoRow
             label="Cadastrado em"
             value={new Date(profile.created_at).toLocaleDateString('pt-BR', {
-              day: '2-digit', month: 'long', year: 'numeric',
+              day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo',
             })}
           />
           {profile.deleted_at && (
             <InfoRow
               label="Desativado em"
-              value={new Date(profile.deleted_at).toLocaleDateString('pt-BR')}
+              value={new Date(profile.deleted_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
             />
           )}
         </div>
@@ -191,7 +193,7 @@ export default async function UserDetailPage({
               {sub.current_period_end && (
                 <InfoRow
                   label="Vencimento do plano"
-                  value={new Date(sub.current_period_end).toLocaleDateString('pt-BR')}
+                  value={new Date(sub.current_period_end).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                 />
               )}
               {sub.cancel_at_period_end && (
@@ -330,7 +332,7 @@ export default async function UserDetailPage({
               >
                 <span className="font-mono text-indigo-400">{log.action}</span>
                 <span className="text-zinc-500">
-                  {new Date(log.created_at).toLocaleString('pt-BR')}
+                  {new Date(log.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                 </span>
               </li>
             ))}
