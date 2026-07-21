@@ -103,3 +103,39 @@ export async function getAIStats() {
     return { success: false, data: null, error: err.message }
   }
 }
+
+export async function getDeepSeekBalance() {
+  try {
+    const apiKey = process.env.DEEPSEEK_API_KEY
+    if (!apiKey) {
+      return { success: false, data: null, error: 'DEEPSEEK_API_KEY is not configured' }
+    }
+
+    const response = await fetch('https://api.deepseek.com/user/balance', {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      next: { revalidate: 60 } // Cache for 60 seconds
+    })
+
+    if (!response.ok) {
+      return { success: false, data: null, error: 'Failed to fetch balance from DeepSeek' }
+    }
+
+    const data = await response.json()
+    const balanceInfo = data.balance_infos?.find((info: any) => info.currency === 'USD') || data.balance_infos?.[0]
+    
+    return {
+      success: true,
+      data: {
+        totalBalance: balanceInfo?.total_balance || '0.00',
+        currency: balanceInfo?.currency || 'USD'
+      },
+      error: null
+    }
+  } catch (err: any) {
+    console.error('Exception fetching DeepSeek balance:', err)
+    return { success: false, data: null, error: err.message }
+  }
+}

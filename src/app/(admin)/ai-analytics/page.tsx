@@ -1,6 +1,6 @@
 import React from 'react'
-import { getAILogs, getAIStats } from '@/app/actions/ai-analytics'
-import { Activity, Coins, DatabaseZap, Network, CheckCircle2, XCircle } from 'lucide-react'
+import { getAILogs, getAIStats, getDeepSeekBalance } from '@/app/actions/ai-analytics'
+import { Activity, Coins, DatabaseZap, Network, CheckCircle2, XCircle, Wallet } from 'lucide-react'
 import { RefreshButton } from './RefreshButton'
 
 export const dynamic = 'force-dynamic'
@@ -10,9 +10,10 @@ export const metadata = {
 }
 
 export default async function AIAnalyticsPage() {
-  const [logsRes, statsRes] = await Promise.all([
+  const [logsRes, statsRes, balanceRes] = await Promise.all([
     getAILogs(50),
-    getAIStats()
+    getAIStats(),
+    getDeepSeekBalance()
   ])
 
   const stats = statsRes.data || {
@@ -46,7 +47,25 @@ export default async function AIAnalyticsPage() {
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
         
         {/* KPI Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {/* DeepSeek Balance Card */}
+          <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-transparent p-6 backdrop-blur-xl transition-all hover:bg-amber-500/10">
+            <div className="absolute -right-4 -top-4 rounded-full bg-amber-500/10 p-8 blur-2xl" />
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
+                <Wallet className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-amber-500/80">Saldo DeepSeek (Total)</p>
+                <p className="text-2xl font-bold text-amber-400">
+                  {balanceRes.data ? `$${balanceRes.data.totalBalance}` : 'Erro'}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-2 text-xs text-amber-500/60">
+              <span>Plataforma + AGOS</span>
+            </div>
+          </div>
           <div className="relative overflow-hidden rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-6 backdrop-blur-xl transition-all hover:bg-zinc-800/50">
             <div className="absolute -right-4 -top-4 rounded-full bg-indigo-500/10 p-8 blur-2xl" />
             <div className="flex items-center gap-4">
