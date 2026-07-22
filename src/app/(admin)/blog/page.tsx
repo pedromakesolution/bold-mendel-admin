@@ -202,14 +202,19 @@ export default async function BlogListPage(props: { searchParams: Promise<{ q?: 
         })()}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* ── Tabela de Posts (2/3) ── */}
-        <div className="lg:col-span-2">
-          <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/80 backdrop-blur-sm">
-            <div className="border-b border-zinc-800 px-5 py-4 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-zinc-200">Artigos</h2>
+      <div className="grid gap-6 xl:grid-cols-3">
+        {/* ── Tabela de Posts (2/3 em telas XL) ── */}
+        <div className="xl:col-span-2">
+          <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/80 p-5 backdrop-blur-sm">
+            <div className="border-b border-zinc-800 pb-4 mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-zinc-100">Gerenciamento de Artigos</h2>
+                <p className="text-xs text-zinc-400 mt-0.5">Filtre, ordene, pesquise e gerencie a indexação dos seus artigos</p>
+              </div>
               {allPostsMetrics.size > 0 && (
-                <span className="text-xs text-zinc-500">+ métricas GSC (28d)</span>
+                <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                  + Métricas GSC Integradas
+                </span>
               )}
             </div>
 
