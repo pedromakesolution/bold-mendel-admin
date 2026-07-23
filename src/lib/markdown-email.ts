@@ -187,10 +187,25 @@ export function parseMarkdownToEmailHtml(markdown: string): string {
     <tr>
       <td align="center">
         <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-          <!-- Header Banner -->
+          <!-- Header Banner Minimalista & Elegante -->
           <tr>
-            <td style="background-color: #4f46e5; padding: 24px 32px; text-align: center;">
-              <h2 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">Bold Mendel</h2>
+            <td style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%); background-color: #1e1b4b; padding: 32px 28px; text-align: center; border-bottom: 3px solid #6366f1;">
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center" style="padding-bottom: 8px;">
+                    <span style="display: inline-block; background-color: rgba(99, 102, 241, 0.25); color: #c7d2fe; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; padding: 4px 14px; border-radius: 20px; border: 1px solid rgba(199, 210, 254, 0.25);">
+                      FREELA DOCK
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center">
+                    <h1 style="color: #ffffff; margin: 6px 0 0 0; font-size: 21px; font-weight: 800; letter-spacing: -0.4px; line-height: 1.3;">
+                      Newsletter Sem Trabalho Invisível
+                    </h1>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <!-- Body Content -->
