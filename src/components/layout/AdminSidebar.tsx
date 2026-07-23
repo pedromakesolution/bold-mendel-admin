@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Globe2,
   Brain,
+  Share2,
 } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
 import { useTicketCountStore } from '@/stores/ticketCountStore'
@@ -61,6 +62,13 @@ const NAV_ITEMS = [
     shortLabel: 'IA',
     icon: Brain,
     group: 'main',
+  },
+  {
+    href: '/social-media',
+    label: 'Social Media',
+    shortLabel: 'Social',
+    icon: Share2,
+    group: 'content',
   },
   {
     href: '/site',
