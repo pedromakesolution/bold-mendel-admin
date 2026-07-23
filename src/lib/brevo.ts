@@ -221,3 +221,96 @@ export async function getBrevoLists(): Promise<BrevoList[]> {
   }
 }
 
+/**
+ * Dispara um Evento Customizado na Brevo para acionar um Workflow de Automação
+ */
+export async function trackBrevoEvent(options: {
+  email: string
+  eventName: string
+  eventProperties?: Record<string, unknown>
+}) {
+  const res = await fetch(`${BREVO_API_URL}/events`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({
+      email: options.email,
+      event_name: options.eventName,
+      properties: options.eventProperties || {},
+    }),
+  })
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data?.message || `Erro Brevo (${res.status}): Falha ao disparar evento de automação.`)
+  }
+
+  return true
+}
+
+/**
+ * Adiciona um contato a uma lista na Brevo (aciona workflows baseados em lista)
+ */
+export async function addBrevoContactToList(email: string, listId: number) {
+  const res = await fetch(`${BREVO_API_URL}/contacts/lists/${listId}/contacts/add`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({
+      emails: [email],
+    }),
+  })
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data?.message || `Erro Brevo (${res.status}): Falha ao adicionar contato à lista.`)
+  }
+
+  return true
+}
+
+/**
+ * Remove um contato de uma lista na Brevo
+ */
+export async function removeBrevoContactFromList(email: string, listId: number) {
+  const res = await fetch(`${BREVO_API_URL}/contacts/lists/${listId}/contacts/remove`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({
+      emails: [email],
+    }),
+  })
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data?.message || `Erro Brevo (${res.status}): Falha ao remover contato da lista.`)
+  }
+
+  return true
+}
+
+/**
+ * Envia e-mail transacional via template da Brevo com parâmetros dinâmicos
+ */
+export async function sendBrevoTransactionalTemplate(options: {
+  email: string
+  templateId: number
+  params?: Record<string, unknown>
+}) {
+  const res = await fetch(`${BREVO_API_URL}/smtp/email`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({
+      to: [{ email: options.email }],
+      templateId: options.templateId,
+      params: options.params || {},
+    }),
+  })
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data?.message || `Erro Brevo (${res.status}): Falha ao enviar e-mail transacional.`)
+  }
+
+  return true
+}
+
+

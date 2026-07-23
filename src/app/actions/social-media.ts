@@ -10,6 +10,10 @@ import {
   getBrevoCampaignDetails,
   getBrevoSenders,
   getBrevoLists,
+  trackBrevoEvent,
+  addBrevoContactToList,
+  removeBrevoContactFromList,
+  sendBrevoTransactionalTemplate,
   BrevoSender,
   BrevoList,
 } from '@/lib/brevo'
@@ -312,3 +316,97 @@ export async function deleteNewsletterAction(id: string) {
     return { success: false, error: message }
   }
 }
+
+/**
+ * Dispara um evento de automação na Brevo (ex: cadastro_realizado, proposta_solicitada)
+ */
+export async function triggerBrevoAutomationEventAction(
+  email: string,
+  eventName: string,
+  propertiesJson?: string
+) {
+  try {
+    let properties: Record<string, unknown> = {}
+    if (propertiesJson && propertiesJson.trim()) {
+      try {
+        properties = JSON.parse(propertiesJson)
+      } catch {
+        return { success: false, error: 'O formato JSON dos atributos é inválido.' }
+      }
+    }
+
+    await trackBrevoEvent({
+      email,
+      eventName,
+      eventProperties: properties,
+    })
+
+    return {
+      success: true,
+      message: `Evento "${eventName}" disparado com sucesso na Brevo para ${email}!`,
+    }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Erro ao disparar evento de automação.'
+    return { success: false, error: message }
+  }
+}
+
+/**
+ * Adiciona ou remove um contato de uma lista na Brevo para acionar fluxos de automação
+ */
+export async function manageBrevoContactListAction(
+  email: string,
+  listId: number,
+  action: 'add' | 'remove'
+) {
+  try {
+    if (action === 'add') {
+      await addBrevoContactToList(email, listId)
+    } else {
+      await removeBrevoContactFromList(email, listId)
+    }
+
+    return {
+      success: true,
+      message: `Contato ${email} ${action === 'add' ? 'adicionado à' : 'removido da'} lista #${listId} com sucesso!`,
+    }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Erro ao gerenciar contato na lista da Brevo.'
+    return { success: false, error: message }
+  }
+}
+
+/**
+ * Dispara um e-mail transacional baseado em um Template ID da Brevo com parâmetros dinâmicos
+ */
+export async function sendBrevoTransactionalTemplateAction(
+  email: string,
+  templateId: number,
+  paramsJson?: string
+) {
+  try {
+    let params: Record<string, unknown> = {}
+    if (paramsJson && paramsJson.trim()) {
+      try {
+        params = JSON.parse(paramsJson)
+      } catch {
+        return { success: false, error: 'O formato JSON dos parâmetros é inválido.' }
+      }
+    }
+
+    await sendBrevoTransactionalTemplate({
+      email,
+      templateId,
+      params,
+    })
+
+    return {
+      success: true,
+      message: `E-mail transacional (Template #${templateId}) enviado com sucesso para ${email}!`,
+    }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Erro ao disparar e-mail transacional.'
+    return { success: false, error: message }
+  }
+}
+

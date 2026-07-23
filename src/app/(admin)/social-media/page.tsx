@@ -19,9 +19,10 @@ import {
 import { getNewslettersAction, NewsletterItem } from '@/app/actions/social-media'
 import NewsletterEditor from '@/components/social-media/NewsletterEditor'
 import NewsletterList from '@/components/social-media/NewsletterList'
+import AutomationManager from '@/components/social-media/AutomationManager'
 
 export default function SocialMediaPage() {
-  const [activeTab, setActiveTab] = useState<'newsletters' | 'social'>('newsletters')
+  const [activeTab, setActiveTab] = useState<'newsletters' | 'automations' | 'social'>('newsletters')
   const [isEditing, setIsEditing] = useState(false)
   const [selectedNewsletter, setSelectedNewsletter] = useState<NewsletterItem | null>(null)
 
@@ -84,7 +85,7 @@ export default function SocialMediaPage() {
             <h1 className="text-2xl font-bold text-zinc-100">Social Media & Marketing</h1>
           </div>
           <p className="mt-1 text-xs text-zinc-400">
-            Gerencie campanhas de e-mail marketing via Brevo e acompanhe a integração com redes sociais.
+            Gerencie campanhas de e-mail marketing, réguas de automação e acompanhe integrações.
           </p>
         </div>
 
@@ -163,6 +164,22 @@ export default function SocialMediaPage() {
           <Mail className="h-4 w-4" />
           Newsletters (Brevo)
         </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('automations')
+            setIsEditing(false)
+          }}
+          className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold transition-all ${
+            activeTab === 'automations'
+              ? 'border-indigo-500 text-indigo-400'
+              : 'border-transparent text-zinc-400 hover:text-zinc-200'
+          }`}
+        >
+          <Zap className="h-4 w-4" />
+          Automações Brevo
+        </button>
+
         <button
           onClick={() => {
             setActiveTab('social')
@@ -208,6 +225,8 @@ export default function SocialMediaPage() {
             onRefresh={loadData}
           />
         )
+      ) : activeTab === 'automations' ? (
+        <AutomationManager availableLists={lists} />
       ) : (
         /* Tab Redes Sociais */
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-8 text-center shadow-xl">
