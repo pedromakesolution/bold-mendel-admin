@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import {
   Save,
   Send,
@@ -20,7 +21,10 @@ import {
   scheduleOrSendNewsletterAction,
   NewsletterItem,
 } from '@/app/actions/social-media'
+import { parseMarkdownToEmailHtml } from '@/lib/markdown-email'
 import TestEmailModal from './TestEmailModal'
+
+const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
 
 interface NewsletterEditorProps {
   initialNewsletter?: NewsletterItem | null
@@ -57,51 +61,8 @@ export default function NewsletterEditor({
   const [isTestModalOpen, setIsTestModalOpen] = useState(false)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  // Converte Markdown básico ou texto para HTML para o corpo da newsletter
-  function generateHtmlContent(text: string) {
-    if (!text) return '<p></p>'
-    // Se o usuário já escreveu HTML completo
-    if (text.trim().startsWith('<html') || text.trim().startsWith('<div')) {
-      return text
-    }
-
-    // Template HTML profissional responsivo para e-mail
-    const paragraphs = text
-      .split('\n\n')
-      .map((p) => `<p style="margin-bottom: 16px; line-height: 1.6; color: #334155;">${p.replace(/\n/g, '<br/>')}</p>`)
-      .join('')
-
-    return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; }
-    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; }
-    .header { border-bottom: 2px solid #6366f1; padding-bottom: 16px; margin-bottom: 24px; text-align: center; }
-    .footer { border-top: 1px solid #e2e8f0; margin-top: 32px; padding-top: 16px; text-align: center; font-size: 12px; color: #94a3b8; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h2 style="color: #4f46e5; margin: 0; font-size: 20px; font-weight: 700;">Bold Mendel</h2>
-    </div>
-    <div class="content">
-      ${paragraphs}
-    </div>
-    <div class="footer">
-      <p>© ${new Date().getFullYear()} Bold Mendel. Todos os direitos reservados.</p>
-    </div>
-  </div>
-</body>
-</html>
-    `.trim()
-  }
-
-  const htmlContent = generateHtmlContent(contentMarkdown)
+  // Converte Markdown completo para HTML inline-styled de e-mail (Brevo / Gmail / Outlook)
+  const htmlContent = parseMarkdownToEmailHtml(contentMarkdown)
 
   async function handleSaveDraft() {
     if (!title.trim() || !subject.trim()) {
@@ -182,7 +143,7 @@ export default function NewsletterEditor({
             {id ? 'Editar Newsletter' : 'Nova Newsletter'}
           </h2>
           <p className="text-xs text-zinc-400 mt-1">
-            Crie, formate e envie sua newsletter diretamente para a lista da Brevo.
+            Crie ou cole seu texto em Markdown. O sistema converte automaticamente para HTML formatado da Brevo.
           </p>
         </div>
 
@@ -293,11 +254,11 @@ export default function NewsletterEditor({
           </div>
         </div>
 
-        {/* Editor & Preview Tabs */}
+        {/* Editor Markdown & Visualizador de E-mail */}
         <div>
           <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-3">
             <label className="text-xs font-medium text-zinc-300">
-              Conteúdo da Newsletter *
+              Conteúdo da Newsletter (Suporte total a Markdown) *
             </label>
             <div className="flex items-center gap-1 bg-zinc-800 p-1 rounded-lg">
               <button
@@ -310,7 +271,7 @@ export default function NewsletterEditor({
                 }`}
               >
                 <Edit3 className="h-3.5 w-3.5" />
-                Escrever
+                Editor Markdown
               </button>
               <button
                 type="button"
@@ -322,32 +283,32 @@ export default function NewsletterEditor({
                 }`}
               >
                 <Eye className="h-3.5 w-3.5" />
-                Pré-visualização (E-mail)
+                Pré-visualização (E-mail Brevo)
               </button>
             </div>
           </div>
 
           {activeTab === 'write' ? (
-            <div>
-              <textarea
-                required
-                rows={12}
+            <div data-color-mode="dark" className="rounded-xl overflow-hidden border border-zinc-700">
+              <MDEditor
                 value={contentMarkdown}
-                onChange={(e) => setContentMarkdown(e.target.value)}
-                placeholder="Escreva a sua newsletter aqui... (Quebras de linha duplas formam novos parágrafos)."
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-4 text-sm font-mono text-zinc-100 placeholder-zinc-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+                onChange={(val) => setContentMarkdown(val || '')}
+                height={400}
+                preview="live"
+                hideToolbar={false}
               />
-              <p className="text-[11px] text-zinc-500 mt-1.5">
-                Dica: O texto será automaticamente formatado num template de e-mail responsivo da Bold Mendel.
-              </p>
+              <div className="bg-zinc-950 p-2.5 border-t border-zinc-800 text-[11px] text-zinc-400 flex items-center justify-between">
+                <span>💡 Suporta marcações como: <code># Título</code>, <code>**Negrito**</code>, <code>[Link](url)</code>, <code>- Lista</code>, <code>&gt; Citação</code> e tabelas.</span>
+                <span className="font-mono text-zinc-500">{contentMarkdown.length} caracteres</span>
+              </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4 min-h-[300px] overflow-hidden">
-              <div className="mx-auto max-w-[600px] rounded-lg bg-white p-6 shadow-inner text-zinc-900">
+            <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4 min-h-[400px] overflow-hidden">
+              <div className="mx-auto max-w-[640px] rounded-lg bg-white p-2 shadow-xl">
                 <iframe
-                  title="Preview da Newsletter"
+                  title="Pré-visualização do E-mail Brevo"
                   srcDoc={htmlContent}
-                  className="w-full min-h-[360px] border-0"
+                  className="w-full min-h-[450px] border-0 rounded"
                 />
               </div>
             </div>
