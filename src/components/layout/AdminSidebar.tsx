@@ -66,9 +66,9 @@ const NAV_ITEMS = [
   },
   {
     href: '/social-media',
-    label: 'E-Mail Mkt - Brevo',
-    shortLabel: 'E-Mail Mkt',
-    icon: Mail,
+    label: 'Social Media',
+    shortLabel: 'Social',
+    icon: Share2,
     group: 'content',
   },
   {
