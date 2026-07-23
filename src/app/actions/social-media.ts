@@ -8,6 +8,10 @@ import {
   getBrevoAccountSummary,
   getBrevoNewsletterContactsCount,
   getBrevoCampaignDetails,
+  getBrevoSenders,
+  getBrevoLists,
+  BrevoSender,
+  BrevoList,
 } from '@/lib/brevo'
 import { revalidatePath } from 'next/cache'
 
@@ -19,6 +23,7 @@ export interface NewsletterItem {
   sender_email: string
   content_markdown: string | null
   content_html: string
+  list_ids?: number[] | null
   brevo_campaign_id: number | null
   status: 'draft' | 'scheduled' | 'sent' | 'cancelled'
   scheduled_at: string | null
@@ -35,8 +40,8 @@ export interface NewsletterItem {
 }
 
 /**
- * Busca todas as newsletters salvas no Supabase
- * e inclui resumo da conta Brevo e contatos
+ * Busca todas as newsletters salvas no Supabase,
+ * resumo da conta, contatos, remetentes cadastrados e listas da Brevo
  */
 export async function getNewslettersAction() {
   try {
@@ -46,29 +51,35 @@ export async function getNewslettersAction() {
       .select('*')
       .order('created_at', { ascending: false })
 
-    if (error) {
+    if (error && error.code !== '42P01') {
       console.error('Erro ao buscar newsletters do Supabase:', error)
-      // Se a tabela ainda não existir no Supabase, retorna lista vazia amigavelmente
-      if (error.code === '42P01') {
-        return { newsletters: [], accountInfo: null, totalSubscribers: 0 }
-      }
-      throw new Error(error.message)
     }
 
-    const [accountInfo, totalSubscribers] = await Promise.all([
+    const [accountInfo, totalSubscribers, senders, lists] = await Promise.all([
       getBrevoAccountSummary(),
       getBrevoNewsletterContactsCount(),
+      getBrevoSenders(),
+      getBrevoLists(),
     ])
 
     return {
       newsletters: (newsletters || []) as NewsletterItem[],
       accountInfo,
       totalSubscribers: totalSubscribers ?? 0,
+      senders: senders as BrevoSender[],
+      lists: lists as BrevoList[],
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erro ao carregar newsletters.'
     console.error('getNewslettersAction error:', message)
-    return { newsletters: [], accountInfo: null, totalSubscribers: 0, error: message }
+    return {
+      newsletters: [],
+      accountInfo: null,
+      totalSubscribers: 0,
+      senders: [],
+      lists: [],
+      error: message,
+    }
   }
 }
 
@@ -83,6 +94,7 @@ export async function saveNewsletterDraftAction(data: {
   senderEmail: string
   contentMarkdown: string
   contentHtml: string
+  listIds?: number[]
 }) {
   try {
     const supabase = createBlogAdminClient()
@@ -93,6 +105,7 @@ export async function saveNewsletterDraftAction(data: {
       sender_email: data.senderEmail,
       content_markdown: data.contentMarkdown,
       content_html: data.contentHtml,
+      list_ids: data.listIds || [3],
       status: 'draft',
       updated_at: new Date().toISOString(),
     }
@@ -136,18 +149,18 @@ export async function sendTestNewsletterAction(data: {
   senderEmail: string
   contentHtml: string
   testEmail: string
+  listIds?: number[]
 }) {
   try {
-    // 1. Cria uma campanha temporária ou usa existente na Brevo
     const campaign = await createBrevoCampaign({
       name: `[TESTE] ${data.title} - ${new Date().toLocaleTimeString('pt-BR')}`,
       subject: `[TESTE] ${data.subject}`,
       htmlContent: data.contentHtml,
       senderName: data.senderName,
       senderEmail: data.senderEmail,
+      listIds: data.listIds && data.listIds.length > 0 ? data.listIds : [3],
     })
 
-    // 2. Dispara e-mail de teste para o endereço informado
     await sendBrevoTestEmail(campaign.id, data.testEmail)
 
     return {
@@ -161,7 +174,7 @@ export async function sendTestNewsletterAction(data: {
 }
 
 /**
- * Agenda ou dispara imediatamente a newsletter para a lista da Brevo e salva no Supabase
+ * Agenda ou dispara imediatamente a newsletter para as listas da Brevo e salva no Supabase
  */
 export async function scheduleOrSendNewsletterAction(data: {
   id?: string
@@ -171,18 +184,21 @@ export async function scheduleOrSendNewsletterAction(data: {
   senderEmail: string
   contentMarkdown: string
   contentHtml: string
+  listIds?: number[]
   scheduledAt?: string // ISO format
 }) {
   try {
     const supabase = createBlogAdminClient()
+    const targetListIds = data.listIds && data.listIds.length > 0 ? data.listIds : [3]
 
-    // 1. Criar a campanha na Brevo
+    // 1. Criar a campanha na Brevo associada às listas selecionadas
     const campaign = await createBrevoCampaign({
       name: data.title,
       subject: data.subject,
       htmlContent: data.contentHtml,
       senderName: data.senderName,
       senderEmail: data.senderEmail,
+      listIds: targetListIds,
       scheduledAt: data.scheduledAt || undefined,
     })
 
@@ -201,6 +217,7 @@ export async function scheduleOrSendNewsletterAction(data: {
       sender_email: data.senderEmail,
       content_markdown: data.contentMarkdown,
       content_html: data.contentHtml,
+      list_ids: targetListIds,
       brevo_campaign_id: campaign.id,
       status,
       scheduled_at: data.scheduledAt || null,
@@ -234,7 +251,7 @@ export async function scheduleOrSendNewsletterAction(data: {
       success: true,
       message: data.scheduledAt
         ? `Newsletter agendada com sucesso para ${new Date(data.scheduledAt).toLocaleString('pt-BR')}!`
-        : 'Newsletter enviada com sucesso para toda a lista da Brevo!',
+        : `Newsletter enviada com sucesso para as ${targetListIds.length} lista(s) da Brevo!`,
       newsletter: savedNewsletter,
     }
   } catch (err: unknown) {
@@ -257,8 +274,8 @@ export async function syncNewsletterStatsAction(id: string, brevoCampaignId: num
 
     const supabase = createBlogAdminClient()
     const stats = {
-      open_rate: statistics.viewed ? Math.round((statistics.uniqueViews / statistics.delivered) * 100) : 0,
-      click_rate: statistics.clicks ? Math.round((statistics.clicks / statistics.delivered) * 100) : 0,
+      open_rate: statistics.delivered ? Math.round(((statistics.uniqueViews || statistics.viewed || 0) / statistics.delivered) * 100) : 0,
+      click_rate: statistics.delivered ? Math.round(((statistics.clicks || 0) / statistics.delivered) * 100) : 0,
       delivered: statistics.delivered || 0,
       unique_views: statistics.uniqueViews || statistics.viewed || 0,
       unsubscribes: statistics.unsubscriptions || 0,

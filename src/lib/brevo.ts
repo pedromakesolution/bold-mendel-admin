@@ -168,3 +168,56 @@ export async function getBrevoNewsletterContactsCount() {
     return null
   }
 }
+
+export interface BrevoSender {
+  id: number
+  name: string
+  email: string
+  active?: boolean
+}
+
+export interface BrevoList {
+  id: number
+  name: string
+  totalSubscribers?: number
+  uniqueSubscribers?: number
+}
+
+/**
+ * Busca remetentes cadastrados e verificados na Brevo
+ */
+export async function getBrevoSenders(): Promise<BrevoSender[]> {
+  try {
+    const res = await fetch(`${BREVO_API_URL}/senders`, {
+      method: 'GET',
+      headers: getHeaders(),
+      next: { revalidate: 60 },
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data?.senders || []) as BrevoSender[]
+  } catch (error) {
+    console.error('Erro ao buscar remetentes da Brevo:', error)
+    return []
+  }
+}
+
+/**
+ * Busca listas de contatos da Brevo
+ */
+export async function getBrevoLists(): Promise<BrevoList[]> {
+  try {
+    const res = await fetch(`${BREVO_API_URL}/contacts/lists?limit=50&offset=0`, {
+      method: 'GET',
+      headers: getHeaders(),
+      next: { revalidate: 60 },
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data?.lists || []) as BrevoList[]
+  } catch (error) {
+    console.error('Erro ao buscar listas da Brevo:', error)
+    return []
+  }
+}
+

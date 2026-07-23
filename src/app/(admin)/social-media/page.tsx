@@ -29,6 +29,8 @@ export default function SocialMediaPage() {
   const [newsletters, setNewsletters] = useState<NewsletterItem[]>([])
   const [totalSubscribers, setTotalSubscribers] = useState(0)
   const [accountInfo, setAccountInfo] = useState<{ email?: string; plan?: Array<{ type?: string; credits?: number }> } | null>(null)
+  const [senders, setSenders] = useState<Array<{ id: number; name: string; email: string }>>([])
+  const [lists, setLists] = useState<Array<{ id: number; name: string; totalSubscribers?: number }>>([])
   const [error, setError] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
@@ -43,6 +45,8 @@ export default function SocialMediaPage() {
       setNewsletters(res.newsletters)
       setTotalSubscribers(res.totalSubscribers)
       setAccountInfo(res.accountInfo)
+      setSenders(res.senders || [])
+      setLists(res.lists || [])
     }
   }, [])
 
@@ -180,6 +184,8 @@ export default function SocialMediaPage() {
         isEditing ? (
           <NewsletterEditor
             initialNewsletter={selectedNewsletter}
+            availableSenders={senders}
+            availableLists={lists}
             onSaved={handleSaved}
             onCancel={() => setIsEditing(false)}
           />

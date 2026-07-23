@@ -15,6 +15,9 @@ import {
   Mail,
   User,
   Sparkles,
+  Users,
+  CheckSquare,
+  Square,
 } from 'lucide-react'
 import {
   saveNewsletterDraftAction,
@@ -28,12 +31,16 @@ const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
 
 interface NewsletterEditorProps {
   initialNewsletter?: NewsletterItem | null
+  availableSenders?: Array<{ id: number; name: string; email: string }>
+  availableLists?: Array<{ id: number; name: string; totalSubscribers?: number }>
   onSaved?: () => void
   onCancel?: () => void
 }
 
 export default function NewsletterEditor({
   initialNewsletter,
+  availableSenders = [],
+  availableLists = [],
   onSaved,
   onCancel,
 }: NewsletterEditorProps) {
@@ -41,12 +48,18 @@ export default function NewsletterEditor({
   const [title, setTitle] = useState(initialNewsletter?.title || '')
   const [subject, setSubject] = useState(initialNewsletter?.subject || '')
   const [senderName, setSenderName] = useState(
-    initialNewsletter?.sender_name || 'Bold Mendel'
+    initialNewsletter?.sender_name || availableSenders[0]?.name || 'Bold Mendel'
   )
   const [senderEmail, setSenderEmail] = useState(
-    initialNewsletter?.sender_email || 'contato@freeladock.com.br'
+    initialNewsletter?.sender_email || availableSenders[0]?.email || 'contato@freeladock.com.br'
   )
   const [contentMarkdown, setContentMarkdown] = useState(initialNewsletter?.content_markdown || '')
+
+  // Seleção de listas da Brevo (múltiplas listas)
+  const defaultListIds = initialNewsletter?.list_ids && initialNewsletter.list_ids.length > 0
+    ? initialNewsletter.list_ids
+    : [3]
+  const [selectedListIds, setSelectedListIds] = useState<number[]>(defaultListIds)
 
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write')
   const [isScheduled, setIsScheduled] = useState(Boolean(initialNewsletter?.scheduled_at))
@@ -63,6 +76,27 @@ export default function NewsletterEditor({
 
   // Converte Markdown completo para HTML inline-styled de e-mail (Brevo / Gmail / Outlook)
   const htmlContent = parseMarkdownToEmailHtml(contentMarkdown)
+
+  function toggleListSelection(listId: number) {
+    setSelectedListIds((prev) => {
+      if (prev.includes(listId)) {
+        if (prev.length === 1) return prev // Mantém ao menos uma lista selecionada
+        return prev.filter((id) => id !== listId)
+      } else {
+        return [...prev, listId]
+      }
+    })
+  }
+
+  function handleSenderSelect(email: string) {
+    const found = availableSenders.find((s) => s.email === email)
+    if (found) {
+      setSenderName(found.name)
+      setSenderEmail(found.email)
+    } else {
+      setSenderEmail(email)
+    }
+  }
 
   async function handleSaveDraft() {
     if (!title.trim() || !subject.trim()) {
@@ -81,6 +115,7 @@ export default function NewsletterEditor({
       senderEmail,
       contentMarkdown,
       contentHtml: htmlContent,
+      listIds: selectedListIds,
     })
 
     setLoadingSave(false)
@@ -98,6 +133,11 @@ export default function NewsletterEditor({
     e.preventDefault()
     if (!title.trim() || !subject.trim() || !contentMarkdown.trim()) {
       setFeedback({ type: 'error', text: 'Por favor, preencha todos os campos obrigatórios.' })
+      return
+    }
+
+    if (selectedListIds.length === 0) {
+      setFeedback({ type: 'error', text: 'Selecione ao menos uma lista de destinatários.' })
       return
     }
 
@@ -121,6 +161,7 @@ export default function NewsletterEditor({
       senderEmail,
       contentMarkdown,
       contentHtml: htmlContent,
+      listIds: selectedListIds,
       scheduledAt: isoScheduledAt,
     })
 
@@ -143,7 +184,7 @@ export default function NewsletterEditor({
             {id ? 'Editar Newsletter' : 'Nova Newsletter'}
           </h2>
           <p className="text-xs text-zinc-400 mt-1">
-            Crie ou cole seu texto em Markdown. O sistema converte automaticamente para HTML formatado da Brevo.
+            Selecione o remetente verificado na Brevo, as listas de envio e formate o conteúdo em Markdown.
           </p>
         </div>
 
@@ -195,7 +236,7 @@ export default function NewsletterEditor({
       )}
 
       <form onSubmit={handleSendOrSchedule} className="mt-6 space-y-5">
-        {/* Metadados */}
+        {/* Metadados Principais */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-zinc-300 mb-1">
@@ -226,32 +267,121 @@ export default function NewsletterEditor({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5 text-zinc-400" />
-              Nome do Remetente
+        {/* Seleção do Remetente da Brevo */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4 space-y-3">
+          <label className="block text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
+            <User className="h-4 w-4 text-indigo-400" />
+            Remetente da Brevo
+          </label>
+
+          {availableSenders.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] text-zinc-400 mb-1">
+                  Selecione um E-mail Verificado na Brevo
+                </label>
+                <select
+                  value={senderEmail}
+                  onChange={(e) => handleSenderSelect(e.target.value)}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-xs text-zinc-100 focus:border-indigo-500 focus:outline-none"
+                >
+                  {availableSenders.map((s) => (
+                    <option key={s.id} value={s.email}>
+                      {s.name} ({s.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-zinc-400 mb-1">
+                  Nome de Exibição do Remetente
+                </label>
+                <input
+                  type="text"
+                  value={senderName}
+                  onChange={(e) => setSenderName(e.target.value)}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-xs text-zinc-100 focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] text-zinc-400 mb-1">Nome do Remetente</label>
+                <input
+                  type="text"
+                  value={senderName}
+                  onChange={(e) => setSenderName(e.target.value)}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-xs text-zinc-100"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-zinc-400 mb-1">E-mail do Remetente</label>
+                <input
+                  type="email"
+                  value={senderEmail}
+                  onChange={(e) => setSenderEmail(e.target.value)}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-xs text-zinc-100"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Seleção Múltipla de Listas da Brevo */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
+              <Users className="h-4 w-4 text-indigo-400" />
+              Listas de Destinatários na Brevo (Selecione uma ou mais) *
             </label>
-            <input
-              type="text"
-              value={senderName}
-              onChange={(e) => setSenderName(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3.5 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
-            />
+            <span className="text-[11px] font-medium text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20">
+              {selectedListIds.length} lista(s) selecionada(s)
+            </span>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1.5">
-              <Mail className="h-3.5 w-3.5 text-zinc-400" />
-              E-mail do Remetente
-            </label>
-            <input
-              type="email"
-              value={senderEmail}
-              onChange={(e) => setSenderEmail(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3.5 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
-            />
-          </div>
+          {availableLists.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
+              {availableLists.map((list) => {
+                const isSelected = selectedListIds.includes(list.id)
+                return (
+                  <button
+                    key={list.id}
+                    type="button"
+                    onClick={() => toggleListSelection(list.id)}
+                    className={`flex items-center gap-3 rounded-lg border p-3 text-left text-xs transition-all ${
+                      isSelected
+                        ? 'border-indigo-500 bg-indigo-500/10 text-zinc-100 shadow-sm'
+                        : 'border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                    }`}
+                  >
+                    {isSelected ? (
+                      <CheckSquare className="h-4 w-4 shrink-0 text-indigo-400" />
+                    ) : (
+                      <Square className="h-4 w-4 shrink-0 text-zinc-600" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold truncate">{list.name}</p>
+                      <p className="text-[10px] text-zinc-500 mt-0.5">
+                        ID: {list.id} {list.totalSubscribers !== undefined ? `• ${list.totalSubscribers} inscritos` : ''}
+                      </p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900 p-3 text-xs text-zinc-300">
+              <input
+                type="checkbox"
+                checked={selectedListIds.includes(3)}
+                onChange={() => toggleListSelection(3)}
+                className="h-4 w-4 rounded border-zinc-700 bg-zinc-800 text-indigo-600"
+              />
+              <span>Lista #3 — Newsletter Landing Page Bold Mendel</span>
+            </div>
+          )}
         </div>
 
         {/* Editor Markdown & Visualizador de E-mail */}
