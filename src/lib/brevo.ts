@@ -162,7 +162,7 @@ export async function getBrevoNewsletterContactsCount() {
 
     if (!res.ok) return null
     const data = await res.json()
-    return data?.totalSubscribers || data?.uniqueSubscribers || 0
+    return data?.uniqueSubscribers ?? data?.totalSubscribers ?? 0
   } catch (error) {
     console.error('Erro ao buscar contatos da lista Brevo:', error)
     return null

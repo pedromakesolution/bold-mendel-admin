@@ -15,6 +15,7 @@ import {
   Globe2,
   Brain,
   Share2,
+  Mail,
 } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
 import { useTicketCountStore } from '@/stores/ticketCountStore'
@@ -65,9 +66,9 @@ const NAV_ITEMS = [
   },
   {
     href: '/social-media',
-    label: 'Social Media',
-    shortLabel: 'Social',
-    icon: Share2,
+    label: 'E-Mail Mkt - Brevo',
+    shortLabel: 'E-Mail Mkt',
+    icon: Mail,
     group: 'content',
   },
   {

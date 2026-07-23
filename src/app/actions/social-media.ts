@@ -59,17 +59,21 @@ export async function getNewslettersAction() {
       console.error('Erro ao buscar newsletters do Supabase:', error)
     }
 
-    const [accountInfo, totalSubscribers, senders, lists] = await Promise.all([
+    const [accountInfo, newsletterCount, senders, lists] = await Promise.all([
       getBrevoAccountSummary(),
       getBrevoNewsletterContactsCount(),
       getBrevoSenders(),
       getBrevoLists(),
     ])
 
+    const totalSubscribers = lists && lists.length > 0
+      ? lists.reduce((acc, l) => acc + (l.uniqueSubscribers ?? l.totalSubscribers ?? 0), 0)
+      : (newsletterCount ?? 0)
+
     return {
       newsletters: (newsletters || []) as NewsletterItem[],
       accountInfo,
-      totalSubscribers: totalSubscribers ?? 0,
+      totalSubscribers,
       senders: senders as BrevoSender[],
       lists: lists as BrevoList[],
     }

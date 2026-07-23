@@ -20,6 +20,7 @@ import { getNewslettersAction, NewsletterItem } from '@/app/actions/social-media
 import NewsletterEditor from '@/components/social-media/NewsletterEditor'
 import NewsletterList from '@/components/social-media/NewsletterList'
 import AutomationManager from '@/components/social-media/AutomationManager'
+import SocialMediaStudio from '@/components/social-media/SocialMediaStudio'
 
 export default function SocialMediaPage() {
   const [activeTab, setActiveTab] = useState<'newsletters' | 'automations' | 'social'>('newsletters')
@@ -82,10 +83,10 @@ export default function SocialMediaPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/20">
               <Share2 className="h-5 w-5 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-zinc-100">Social Media & Marketing</h1>
+            <h1 className="text-2xl font-bold text-zinc-100">E-Mail Mkt - Brevo</h1>
           </div>
           <p className="mt-1 text-xs text-zinc-400">
-            Gerencie campanhas de e-mail marketing, réguas de automação e acompanhe integrações.
+            Gerencie campanhas de newsletters, réguas de automação e contatos da Brevo.
           </p>
         </div>
 
@@ -120,7 +121,7 @@ export default function SocialMediaPage() {
             </div>
           </div>
           <p className="mt-2 text-2xl font-bold text-zinc-100">{totalSubscribers}</p>
-          <p className="mt-1 text-[11px] text-zinc-500">Lista #3 — Landing Page Bold Mendel</p>
+          <p className="mt-1 text-[11px] text-zinc-500">Contatos ativos nas listas da Brevo</p>
         </div>
 
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-lg backdrop-blur-sm">
@@ -228,42 +229,7 @@ export default function SocialMediaPage() {
       ) : activeTab === 'automations' ? (
         <AutomationManager availableLists={lists} />
       ) : (
-        /* Tab Redes Sociais */
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-8 text-center shadow-xl">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500/20 to-indigo-500/20 text-purple-400 border border-purple-500/30 shadow-lg">
-            <Sparkles className="h-8 w-8" />
-          </div>
-          <h3 className="mt-5 text-xl font-bold text-zinc-100">Integração com Redes Sociais</h3>
-          <p className="mt-2 text-xs text-zinc-400 max-w-lg mx-auto leading-relaxed">
-            Este espaço está reservado para a expansão e gerenciamento direto de publicações nas redes sociais do Bold Mendel.
-          </p>
-
-          <div className="mt-8 flex items-center justify-center gap-6 flex-wrap">
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl border border-zinc-800 bg-zinc-950/60 w-32">
-              <Smartphone className="h-6 w-6 text-pink-500" />
-              <span className="text-xs font-semibold text-zinc-300">Instagram</span>
-              <span className="text-[10px] text-zinc-500 font-mono">Em breve</span>
-            </div>
-
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl border border-zinc-800 bg-zinc-950/60 w-32">
-              <Globe className="h-6 w-6 text-blue-500" />
-              <span className="text-xs font-semibold text-zinc-300">LinkedIn</span>
-              <span className="text-[10px] text-zinc-500 font-mono">Em breve</span>
-            </div>
-
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl border border-zinc-800 bg-zinc-950/60 w-32">
-              <MessageSquare className="h-6 w-6 text-blue-600" />
-              <span className="text-xs font-semibold text-zinc-300">Facebook</span>
-              <span className="text-[10px] text-zinc-500 font-mono">Em breve</span>
-            </div>
-
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl border border-zinc-800 bg-zinc-950/60 w-32">
-              <Flame className="h-6 w-6 text-orange-400" />
-              <span className="text-xs font-semibold text-zinc-300">X (Twitter)</span>
-              <span className="text-[10px] text-zinc-500 font-mono">Em breve</span>
-            </div>
-          </div>
-        </div>
+        <SocialMediaStudio />
       )}
     </div>
   )

@@ -32,7 +32,7 @@ const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
 interface NewsletterEditorProps {
   initialNewsletter?: NewsletterItem | null
   availableSenders?: Array<{ id: number; name: string; email: string }>
-  availableLists?: Array<{ id: number; name: string; totalSubscribers?: number }>
+  availableLists?: Array<{ id: number; name: string; totalSubscribers?: number; uniqueSubscribers?: number }>
   onSaved?: () => void
   onCancel?: () => void
 }
@@ -364,7 +364,7 @@ export default function NewsletterEditor({
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold truncate">{list.name}</p>
                       <p className="text-[10px] text-zinc-500 mt-0.5">
-                        ID: {list.id} {list.totalSubscribers !== undefined ? `• ${list.totalSubscribers} inscritos` : ''}
+                        ID: {list.id} • {list.uniqueSubscribers ?? list.totalSubscribers ?? 0} contatos
                       </p>
                     </div>
                   </button>

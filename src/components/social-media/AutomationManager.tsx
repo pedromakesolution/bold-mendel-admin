@@ -22,7 +22,7 @@ import {
 } from '@/app/actions/social-media'
 
 interface AutomationManagerProps {
-  availableLists?: Array<{ id: number; name: string; totalSubscribers?: number }>
+  availableLists?: Array<{ id: number; name: string; totalSubscribers?: number; uniqueSubscribers?: number }>
 }
 
 export default function AutomationManager({ availableLists = [] }: AutomationManagerProps) {
@@ -303,7 +303,7 @@ export default function AutomationManager({ availableLists = [] }: AutomationMan
               >
                 {availableLists.map((l) => (
                   <option key={l.id} value={l.id}>
-                    Lista #{l.id} - {l.name} {l.totalSubscribers !== undefined ? `(${l.totalSubscribers} contatos)` : ''}
+                    Lista #{l.id} - {l.name} ({l.uniqueSubscribers ?? l.totalSubscribers ?? 0} contatos)
                   </option>
                 ))}
               </select>
