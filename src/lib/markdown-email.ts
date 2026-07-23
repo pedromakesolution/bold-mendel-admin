@@ -216,9 +216,12 @@ export function parseMarkdownToEmailHtml(markdown: string): string {
           </tr>
           <!-- Footer -->
           <tr>
-            <td style="background-color: #f1f5f9; padding: 20px 32px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">
-              <p style="margin: 0; margin-bottom: 4px; font-weight: 600;">© ${new Date().getFullYear()} Freela Dock. Todos os direitos reservados.</p>
-              <p style="margin: 0; color: #94a3b8;">Você recebeu este e-mail porque está inscrito em nossa lista de novidades.</p>
+            <td style="background-color: #f1f5f9; padding: 24px 32px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">
+              <p style="margin: 0; margin-bottom: 6px; font-weight: 600;">© ${new Date().getFullYear()} Freela Dock. Todos os direitos reservados.</p>
+              <p style="margin: 0; margin-bottom: 12px; color: #94a3b8;">Você recebeu este e-mail porque está inscrito em nossa lista de novidades.</p>
+              <p style="margin: 0; font-size: 11px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 10px;">
+                Caso não deseje mais receber nossas mensagens, <a href="{{ unsubscribe }}" style="color: #4f46e5; text-decoration: underline; font-weight: 500;">clique aqui para se descadastrar</a>.
+              </p>
             </td>
           </tr>
         </table>
