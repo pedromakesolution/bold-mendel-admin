@@ -21,21 +21,13 @@ import {
   ExternalLink,
   Calendar,
   Clock,
-  MessageSquare,
   ShieldCheck,
-  Zap,
   Grid,
-  Filter,
-  ArrowUpRight,
   PieChart,
-  UserCheck,
-  MapPin,
-  Bot,
 } from 'lucide-react'
 import {
   getInstagramDataAction,
   publishInstagramPostAction,
-  sendInstagramDirectMessageAction,
 } from '@/app/actions/social-media'
 
 function InstagramIcon({ className = 'h-5 w-5' }: { className?: string }) {
@@ -48,7 +40,7 @@ function InstagramIcon({ className = 'h-5 w-5' }: { className?: string }) {
 
 export interface InstagramPostItem {
   id: string
-  type: 'feed' | 'reels' | 'stories' | 'carousel'
+  type: 'feed_4_5' | 'feed_1_1' | 'reels' | 'stories' | 'carousel'
   caption: string
   mediaUrl: string
   permalink?: string
@@ -74,7 +66,7 @@ interface DirectMessageItem {
 
 export default function InstagramStudio() {
   const [activeSubTab, setActiveSubTab] = useState<'metrics' | 'schedule' | 'dm_inbox' | 'comments' | 'permissions'>('metrics')
-  const [activeFormatFilter, setActiveFormatFilter] = useState<'all' | 'feed' | 'reels' | 'stories' | 'carousel'>('all')
+  const [activeFormatFilter, setActiveFormatFilter] = useState<'all' | 'feed' | 'reels' | 'carousel'>('all')
   const [isPublisherOpen, setIsPublisherOpen] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -92,8 +84,8 @@ export default function InstagramStudio() {
   // Lista de Posts
   const [posts, setPosts] = useState<InstagramPostItem[]>([])
 
-  // State do Criador/Agendador
-  const [postType, setPostType] = useState<'feed' | 'reels' | 'stories' | 'carousel'>('feed')
+  // State do Criador/Agendador (Suporta Retrato 4:5 e Quadrado 1:1)
+  const [postType, setPostType] = useState<'feed_4_5' | 'feed_1_1' | 'reels' | 'stories' | 'carousel'>('feed_4_5')
   const [caption, setCaption] = useState('')
   const [mediaUrl, setMediaUrl] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
@@ -143,7 +135,7 @@ export default function InstagramStudio() {
 
     if (res.mediaList && res.mediaList.length > 0) {
       const mappedPosts: InstagramPostItem[] = res.mediaList.map((m) => {
-        let type: 'feed' | 'reels' | 'stories' | 'carousel' = 'feed'
+        let type: 'feed_4_5' | 'feed_1_1' | 'reels' | 'stories' | 'carousel' = 'feed_4_5'
         if (m.mediaType === 'VIDEO') type = 'reels'
         else if (m.mediaType === 'CAROUSEL_ALBUM') type = 'carousel'
 
@@ -260,7 +252,10 @@ export default function InstagramStudio() {
 
   const filteredPosts = activeFormatFilter === 'all'
     ? posts
-    : posts.filter((p) => p.type === activeFormatFilter)
+    : posts.filter((p) => {
+        if (activeFormatFilter === 'feed') return p.type === 'feed_4_5' || p.type === 'feed_1_1'
+        return p.type === activeFormatFilter
+      })
 
   const scheduledPosts = posts.filter((p) => p.status === 'scheduled')
 
@@ -290,7 +285,7 @@ export default function InstagramStudio() {
             }`}
           >
             <Calendar className="h-4 w-4" />
-            Agendador & Grade
+            Agendador & Grade 3x3
             {scheduledPosts.length > 0 && (
               <span className="rounded-full bg-white/20 px-2 py-0.2 text-[10px] font-bold">
                 {scheduledPosts.length}
@@ -359,7 +354,7 @@ export default function InstagramStudio() {
         </div>
       )}
 
-      {/* Editor / Publicador / Agendador do Instagram */}
+      {/* Editor / Publicador / Agendador do Instagram (Suporta Proporção 4:5 e 1:1) */}
       {isPublisherOpen && (
         <form onSubmit={handleCreateInstagramPost} className="rounded-2xl border border-pink-500/30 bg-zinc-900/90 p-6 space-y-6 shadow-2xl animate-in fade-in duration-150">
           <div className="border-b border-zinc-800 pb-3">
@@ -368,43 +363,57 @@ export default function InstagramStudio() {
               Publicador & Agendador Inteligente do Instagram
             </h4>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Defina a legenda, mídia e horário para publicação automática no perfil @{accountInfo?.username || 'freeladock.com.br'}.
+              Defina a legenda, mídia, proporção (4:5 ou 1:1) e horário para publicação automática no perfil @{accountInfo?.username || 'freeladock.com.br'}.
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-2">Formato da Mídia</label>
-                <div className="grid grid-cols-3 gap-2">
+                <label className="block text-xs font-medium text-zinc-300 mb-2">Formato & Proporção da Mídia *</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <button
                     type="button"
-                    onClick={() => setPostType('feed')}
+                    onClick={() => setPostType('feed_4_5')}
                     className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                      postType === 'feed'
-                        ? 'border-pink-500 bg-pink-500/20 text-white'
+                      postType === 'feed_4_5'
+                        ? 'border-pink-500 bg-pink-500/20 text-white shadow-sm'
                         : 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
-                    <ImageIcon className="h-4 w-4 text-pink-400" /> Feed (1:1)
+                    <ImageIcon className="h-4 w-4 text-pink-400" /> Retrato (4:5)
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPostType('feed_1_1')}
+                    className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                      postType === 'feed_1_1'
+                        ? 'border-pink-500 bg-pink-500/20 text-white shadow-sm'
+                        : 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <ImageIcon className="h-4 w-4 text-purple-400" /> Quadrado (1:1)
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setPostType('reels')}
                     className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
                       postType === 'reels'
-                        ? 'border-pink-500 bg-pink-500/20 text-white'
+                        ? 'border-pink-500 bg-pink-500/20 text-white shadow-sm'
                         : 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
                     <Video className="h-4 w-4 text-purple-400" /> Reels (9:16)
                   </button>
+
                   <button
                     type="button"
                     onClick={() => setPostType('carousel')}
                     className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
                       postType === 'carousel'
-                        ? 'border-pink-500 bg-pink-500/20 text-white'
+                        ? 'border-pink-500 bg-pink-500/20 text-white shadow-sm'
                         : 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
@@ -452,10 +461,10 @@ export default function InstagramStudio() {
               </div>
             </div>
 
-            {/* Live Phone Preview */}
+            {/* Live Phone Preview Ajustado para Proporções (4:5 vs 1:1) */}
             <div className="flex flex-col items-center justify-center p-4 rounded-2xl border border-zinc-800 bg-zinc-950">
               <p className="text-[11px] font-semibold text-zinc-400 mb-3 flex items-center gap-1">
-                <Smartphone className="h-3.5 w-3.5 text-pink-400" /> Live Feed Preview (Grade de Celular)
+                <Smartphone className="h-3.5 w-3.5 text-pink-400" /> Live Feed Preview ({postType === 'feed_1_1' ? '1:1 Quadrado' : '4:5 Retrato'})
               </p>
 
               <div className="w-[280px] rounded-3xl border-4 border-zinc-800 bg-black overflow-hidden shadow-2xl">
@@ -470,7 +479,9 @@ export default function InstagramStudio() {
                   </div>
                 </div>
 
-                <div className="h-56 bg-zinc-900 flex items-center justify-center overflow-hidden">
+                <div className={`bg-zinc-900 flex items-center justify-center overflow-hidden ${
+                  postType === 'feed_1_1' ? 'aspect-square' : 'aspect-[4/5]'
+                }`}>
                   {mediaUrl ? (
                     <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
                   ) : (
@@ -610,47 +621,108 @@ export default function InstagramStudio() {
             </div>
           </div>
 
-          {/* Lista de Publicações do Instagram */}
+          {/* LISTA DE PUBLICAÇÕES DO INSTAGRAM EM FORMATO 4 CARDS POR LINHA & PROPORÇÃO 4:5 INTEGRAL */}
           <div className="space-y-4">
-            <h4 className="text-xs font-bold text-zinc-200">Feed de Mídias Publicadas no Instagram</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-zinc-200">
+                Feed de Mídias em Proporção 4:5 (4 Cards por Linha)
+              </h4>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActiveFormatFilter('all')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                    activeFormatFilter === 'all' ? 'bg-pink-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  Todos
+                </button>
+                <button
+                  onClick={() => setActiveFormatFilter('feed')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                    activeFormatFilter === 'feed' ? 'bg-pink-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  Feed
+                </button>
+                <button
+                  onClick={() => setActiveFormatFilter('reels')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                    activeFormatFilter === 'reels' ? 'bg-pink-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  Reels
+                </button>
+                <button
+                  onClick={() => setActiveFormatFilter('carousel')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                    activeFormatFilter === 'carousel' ? 'bg-pink-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  Carrossel
+                </button>
+              </div>
+            </div>
+
+            {/* Grid 4 Cards por linha em telas desktop (lg:grid-cols-4) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {filteredPosts.map((post) => (
                 <div
                   key={post.id}
-                  className="rounded-2xl border border-zinc-800 bg-zinc-900/80 overflow-hidden shadow-xl hover:border-zinc-700 transition-all flex flex-col justify-between"
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900/90 overflow-hidden shadow-xl hover:border-zinc-700 transition-all flex flex-col justify-between"
                 >
-                  <div className="relative h-48 bg-zinc-950 overflow-hidden">
-                    <img src={post.mediaUrl} alt="Post do Instagram" className="w-full h-full object-cover" />
-                    <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-md bg-black/70 px-2.5 py-1 text-[10px] font-bold text-pink-300 backdrop-blur-sm border border-white/10 uppercase">
-                      {post.type}
+                  {/* Imagem em proporção 4:5 Retrato de alta definição sem cortes */}
+                  <div className="relative aspect-[4/5] bg-zinc-950 overflow-hidden border-b border-zinc-800/80">
+                    <img
+                      src={post.mediaUrl}
+                      alt="Post do Instagram"
+                      className="w-full h-full object-cover"
+                    />
+                    <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-md bg-black/75 px-2 py-0.5 text-[9px] font-bold text-pink-300 backdrop-blur-sm border border-white/10 uppercase tracking-wide">
+                      {post.type.includes('feed') ? 'FEED' : post.type}
                     </span>
                     {post.permalink && (
                       <a
                         href={post.permalink}
                         target="_blank"
                         rel="noreferrer"
-                        className="absolute top-3 right-3 rounded-full bg-black/70 p-1.5 text-zinc-300 hover:text-white backdrop-blur-sm border border-white/10"
-                        title="Ver no Instagram"
+                        className="absolute top-2.5 right-2.5 rounded-full bg-black/75 p-1.5 text-zinc-300 hover:text-white backdrop-blur-sm border border-white/10 transition-colors"
+                        title="Abrir no Instagram"
                       >
-                        <ExternalLink className="h-3.5 w-3.5" />
+                        <ExternalLink className="h-3 w-3" />
                       </a>
                     )}
                   </div>
 
-                  <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                    <p className="text-xs text-zinc-300 line-clamp-3 leading-relaxed font-sans">{post.caption}</p>
+                  {/* Exibição da Legenda Completa com respiro visual impecável */}
+                  <div className="p-4 space-y-3 flex-1 flex flex-col justify-between bg-zinc-900/60">
+                    <div className="space-y-1">
+                      <p className="text-[11px] text-zinc-200 leading-relaxed font-sans whitespace-pre-line break-words">
+                        {post.caption}
+                      </p>
+                    </div>
 
-                    <div className="space-y-2 pt-2 border-t border-zinc-800">
-                      <div className="flex items-center justify-between text-[11px] text-zinc-400">
-                        <span className="flex items-center gap-1 text-pink-400">
+                    <div className="space-y-2 pt-3 border-t border-zinc-800/80">
+                      <div className="flex items-center justify-between text-[11px] font-medium text-zinc-400">
+                        <span className="flex items-center gap-1 text-pink-400 font-semibold">
                           <Heart className="h-3.5 w-3.5" /> {post.likes}
                         </span>
-                        <span className="flex items-center gap-1 text-purple-400">
+                        <span className="flex items-center gap-1 text-purple-400 font-semibold">
                           <MessageCircle className="h-3.5 w-3.5" /> {post.comments}
                         </span>
                         <span className="flex items-center gap-1 text-zinc-400">
                           <Eye className="h-3.5 w-3.5" /> {post.reach}
                         </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10px] text-zinc-500 pt-1">
+                        <span>{post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('pt-BR') : 'Publicado'}</span>
+                        <button
+                          onClick={() => handleDeletePost(post.id)}
+                          className="text-zinc-500 hover:text-rose-400 transition-colors"
+                          title="Remover"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -868,7 +940,7 @@ export default function InstagramStudio() {
               <div>
                 <h5 className="text-xs font-bold text-emerald-200">instagram_content_publish (Ativo)</h5>
                 <p className="text-[11px] text-zinc-300 mt-0.5">
-                  Permissão total para agendar e publicar Feed, Reels, Stories e Carrossel via API.
+                  Permissão total para agendar e publicar Feed (4:5 e 1:1), Reels, Stories e Carrossel via API.
                 </p>
               </div>
             </div>
