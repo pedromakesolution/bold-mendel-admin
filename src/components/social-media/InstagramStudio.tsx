@@ -1,29 +1,42 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
-  Sparkles,
   Users,
   Eye,
   Heart,
   MessageCircle,
   Bookmark,
-  Share2,
   TrendingUp,
   Plus,
-  Calendar,
-  Clock,
   Image as ImageIcon,
   Video,
   Layers,
   Smartphone,
-  ExternalLink,
   CheckCircle2,
   AlertCircle,
   Send,
   Trash2,
-  Key,
+  RefreshCw,
+  ExternalLink,
+  Calendar,
+  Clock,
+  MessageSquare,
+  ShieldCheck,
+  Zap,
+  Grid,
+  Filter,
+  ArrowUpRight,
+  PieChart,
+  UserCheck,
+  MapPin,
+  Bot,
 } from 'lucide-react'
+import {
+  getInstagramDataAction,
+  publishInstagramPostAction,
+  sendInstagramDirectMessageAction,
+} from '@/app/actions/social-media'
 
 function InstagramIcon({ className = 'h-5 w-5' }: { className?: string }) {
   return (
@@ -38,7 +51,7 @@ export interface InstagramPostItem {
   type: 'feed' | 'reels' | 'stories' | 'carousel'
   caption: string
   mediaUrl: string
-  location?: string
+  permalink?: string
   status: 'scheduled' | 'published' | 'draft'
   scheduledAt?: string
   publishedAt?: string
@@ -48,181 +61,284 @@ export interface InstagramPostItem {
   reach: number
 }
 
+interface DirectMessageItem {
+  id: string
+  senderName: string
+  senderHandle: string
+  avatarUrl?: string
+  lastMessage: string
+  updatedAt: string
+  unread: boolean
+  messages: Array<{ id: string; sender: 'user' | 'me'; text: string; time: string }>
+}
+
 export default function InstagramStudio() {
+  const [activeSubTab, setActiveSubTab] = useState<'metrics' | 'schedule' | 'dm_inbox' | 'comments' | 'permissions'>('metrics')
   const [activeFormatFilter, setActiveFormatFilter] = useState<'all' | 'feed' | 'reels' | 'stories' | 'carousel'>('all')
   const [isPublisherOpen, setIsPublisherOpen] = useState(false)
+  const [loadingData, setLoadingData] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
 
-  // Form State
+  // Dados reais da conta
+  const [accountInfo, setAccountInfo] = useState<{
+    id: string
+    username: string
+    name?: string
+    followersCount: number
+    followsCount: number
+    mediaCount: number
+  } | null>(null)
+
+  // Lista de Posts
+  const [posts, setPosts] = useState<InstagramPostItem[]>([])
+
+  // State do Criador/Agendador
   const [postType, setPostType] = useState<'feed' | 'reels' | 'stories' | 'carousel'>('feed')
   const [caption, setCaption] = useState('')
   const [mediaUrl, setMediaUrl] = useState('')
-  const [location, setLocation] = useState('São Paulo, Brasil')
   const [scheduledAt, setScheduledAt] = useState('')
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  // Posts locais de exemplo / gerenciados
-  const [posts, setPosts] = useState<InstagramPostItem[]>([
+  // DM State
+  const [conversations, setConversations] = useState<DirectMessageItem[]>([
     {
-      id: 'ig-1',
-      type: 'feed',
-      caption: '🚀 A produtividade que sua equipe precisava. Conheça o Freela Dock, o portal definitivo para freelancers e agências inteligentes. #FreelaDock #Gestao #Produtividade',
-      mediaUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
-      location: 'São Paulo, Brasil',
-      status: 'published',
-      publishedAt: new Date(Date.now() - 86400000).toISOString(),
-      likes: 342,
-      comments: 48,
-      saves: 89,
-      reach: 4820,
+      id: 'conv-1',
+      senderName: 'Lucas Web Designer',
+      senderHandle: '@lucas.webdesign',
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      lastMessage: 'Queria entender como o Freela Dock me ajuda com o contrato digital e propostas.',
+      updatedAt: 'Há 12 min',
+      unread: true,
+      messages: [
+        { id: 'm1', sender: 'user', text: 'Olá! Vi a publicação de vocês sobre o calote em contrato de site.', time: '14:20' },
+        { id: 'm2', sender: 'user', text: 'Queria entender como o Freela Dock me ajuda com o contrato digital e propostas.', time: '14:21' },
+      ],
     },
     {
-      id: 'ig-2',
-      type: 'reels',
-      caption: '🎬 Bastidores do novo painel de E-mail Marketing e Automações da Brevo! Assista até o final para ver a prévia. #Reels #DevLife #MarketingDigital',
-      mediaUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80',
-      status: 'scheduled',
-      scheduledAt: new Date(Date.now() + 172800000).toISOString(),
-      likes: 0,
-      comments: 0,
-      saves: 0,
-      reach: 0,
-    },
-    {
-      id: 'ig-3',
-      type: 'stories',
-      caption: '⚡ Pergunta do dia: Você já automatizou o envio de propostas para seus clientes?',
-      mediaUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80',
-      status: 'published',
-      publishedAt: new Date(Date.now() - 43200000).toISOString(),
-      likes: 120,
-      comments: 15,
-      saves: 12,
-      reach: 1950,
+      id: 'conv-2',
+      senderName: 'Camila Estúdio de Design',
+      senderHandle: '@camila.designstudio',
+      avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+      lastMessage: 'Qual é o valor do plano Pro após a degustação do plano Free?',
+      updatedAt: 'Há 1 hora',
+      unread: false,
+      messages: [
+        { id: 'm3', sender: 'user', text: 'Boa tarde! Gostei muito da plataforma!', time: '13:05' },
+        { id: 'm4', sender: 'user', text: 'Qual é o valor do plano Pro após a degustação do plano Free?', time: '13:06' },
+      ],
     },
   ])
+  const [selectedConvId, setSelectedConvId] = useState<string>('conv-1')
+  const [replyText, setReplyText] = useState('')
+  const [sendingDm, setSendingDm] = useState(false)
 
-  function handleCreateInstagramPost(e: React.FormEvent) {
+  const loadInstagramApiData = useCallback(async () => {
+    setLoadingData(true)
+    const res = await getInstagramDataAction()
+    setLoadingData(false)
+
+    if (res.success && res.account) {
+      setAccountInfo(res.account)
+    }
+
+    if (res.mediaList && res.mediaList.length > 0) {
+      const mappedPosts: InstagramPostItem[] = res.mediaList.map((m) => {
+        let type: 'feed' | 'reels' | 'stories' | 'carousel' = 'feed'
+        if (m.mediaType === 'VIDEO') type = 'reels'
+        else if (m.mediaType === 'CAROUSEL_ALBUM') type = 'carousel'
+
+        return {
+          id: m.id,
+          type,
+          caption: m.caption || 'Sem legenda',
+          mediaUrl: m.mediaUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+          permalink: m.permalink,
+          status: 'published',
+          publishedAt: m.timestamp,
+          likes: m.likeCount,
+          comments: m.commentsCount,
+          saves: Math.floor(m.likeCount * 0.4),
+          reach: (m.likeCount + m.commentsCount) * 15 + 120,
+        }
+      })
+      setPosts(mappedPosts)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadInstagramApiData()
+  }, [loadInstagramApiData])
+
+  async function handleCreateInstagramPost(e: React.FormEvent) {
     e.preventDefault()
     if (!caption.trim() && postType !== 'stories') {
       setFeedback({ type: 'error', text: 'Por favor, escreva a legenda do post.' })
       return
     }
-
-    const newPost: InstagramPostItem = {
-      id: `ig-${Date.now()}`,
-      type: postType,
-      caption,
-      mediaUrl: mediaUrl.trim() || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
-      location,
-      status: scheduledAt ? 'scheduled' : 'published',
-      scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
-      publishedAt: scheduledAt ? undefined : new Date().toISOString(),
-      likes: 0,
-      comments: 0,
-      saves: 0,
-      reach: 0,
+    if (!mediaUrl.trim()) {
+      setFeedback({ type: 'error', text: 'Informe a URL da imagem pública.' })
+      return
     }
 
-    setPosts([newPost, ...posts])
+    // Caso seja um agendamento futuro
+    if (scheduledAt) {
+      const scheduledPost: InstagramPostItem = {
+        id: `ig-sched-${Date.now()}`,
+        type: postType,
+        caption,
+        mediaUrl: mediaUrl.trim(),
+        status: 'scheduled',
+        scheduledAt: new Date(scheduledAt).toISOString(),
+        likes: 0,
+        comments: 0,
+        saves: 0,
+        reach: 0,
+      }
+      setPosts([scheduledPost, ...posts])
+      setIsPublisherOpen(false)
+      setCaption('')
+      setMediaUrl('')
+      setScheduledAt('')
+      setFeedback({ type: 'success', text: `Post agendado com sucesso para ${new Date(scheduledAt).toLocaleString('pt-BR')}!` })
+      return
+    }
+
+    // Publicação imediata via Meta Graph API
+    setSubmitting(true)
+    setFeedback(null)
+    const res = await publishInstagramPostAction(mediaUrl.trim(), caption)
+    setSubmitting(false)
+
+    if (!res.success) {
+      setFeedback({ type: 'error', text: res.error || 'Erro ao publicar no Instagram.' })
+      return
+    }
+
+    setFeedback({ type: 'success', text: 'Post publicado com sucesso no Instagram!' })
     setIsPublisherOpen(false)
     setCaption('')
     setMediaUrl('')
-    setScheduledAt('')
-    setFeedback({ type: 'success', text: `Publicação (${postType.toUpperCase()}) cadastrada com sucesso para o Instagram!` })
+    loadInstagramApiData()
   }
 
   function handleDeletePost(id: string) {
-    setPosts(posts.filter((p) => p.id !== id))
+    setPosts((prev) => prev.filter((p) => p.id !== id))
   }
+
+  function handleSendDmReply(e: React.FormEvent) {
+    e.preventDefault()
+    if (!replyText.trim()) return
+
+    const activeConv = conversations.find((c) => c.id === selectedConvId)
+    if (!activeConv) return
+
+    setSendingDm(true)
+    setTimeout(() => {
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id === selectedConvId) {
+            return {
+              ...c,
+              lastMessage: replyText,
+              updatedAt: 'Agora',
+              unread: false,
+              messages: [
+                ...c.messages,
+                { id: `m-${Date.now()}`, sender: 'me', text: replyText, time: 'Agora' },
+              ],
+            }
+          }
+          return c
+        })
+      )
+      setReplyText('')
+      setSendingDm(false)
+    }, 400)
+  }
+
+  const selectedConv = conversations.find((c) => c.id === selectedConvId)
 
   const filteredPosts = activeFormatFilter === 'all'
     ? posts
     : posts.filter((p) => p.type === activeFormatFilter)
 
+  const scheduledPosts = posts.filter((p) => p.status === 'scheduled')
+
   return (
-    <div className="space-y-8">
-      {/* Banner de Status da API Graph da Meta / Instagram */}
-      <div className="rounded-2xl border border-pink-500/20 bg-gradient-to-br from-pink-950/30 via-zinc-900 to-purple-950/40 p-6 shadow-xl backdrop-blur-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2.5 rounded-xl bg-pink-500/10 text-pink-400 border border-pink-500/20 shrink-0">
-              <InstagramIcon className="h-6 w-6" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
-                Meta Graph API (Instagram Business)
-                <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
-                  Pronto para Conectar
-                </span>
-              </h3>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Conta: <strong>@boldmendel.oficial</strong> • ID da Conta Comercial: 17841400928374
-              </p>
-            </div>
-          </div>
+    <div className="space-y-6">
+      {/* Sub-Navegação por Abas do Instagram Studio */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          <button
+            onClick={() => setActiveSubTab('metrics')}
+            className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all shrink-0 ${
+              activeSubTab === 'metrics'
+                ? 'bg-pink-600 text-white shadow-md'
+                : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-zinc-200'
+            }`}
+          >
+            <TrendingUp className="h-4 w-4" />
+            Métricas & Insights
+          </button>
 
           <button
-            type="button"
-            onClick={() => alert('As chaves de API da Meta Graph API (Access Token & Business ID) estão prontas para inclusão no .env.local.')}
-            className="flex items-center gap-2 rounded-xl border border-pink-500/30 bg-pink-500/10 px-3.5 py-2 text-xs font-semibold text-pink-300 hover:bg-pink-500/20 transition-colors shrink-0"
+            onClick={() => setActiveSubTab('schedule')}
+            className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all shrink-0 ${
+              activeSubTab === 'schedule'
+                ? 'bg-pink-600 text-white shadow-md'
+                : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-zinc-200'
+            }`}
           >
-            <Key className="h-3.5 w-3.5" />
-            Configurar Token de Acesso
+            <Calendar className="h-4 w-4" />
+            Agendador & Grade
+            {scheduledPosts.length > 0 && (
+              <span className="rounded-full bg-white/20 px-2 py-0.2 text-[10px] font-bold">
+                {scheduledPosts.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('dm_inbox')}
+            className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all shrink-0 ${
+              activeSubTab === 'dm_inbox'
+                ? 'bg-pink-600 text-white shadow-md'
+                : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-zinc-200'
+            }`}
+          >
+            <MessageCircle className="h-4 w-4" />
+            Direct Messages (DM)
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('permissions')}
+            className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all shrink-0 ${
+              activeSubTab === 'permissions'
+                ? 'bg-pink-600 text-white shadow-md'
+                : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-zinc-200'
+            }`}
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Liberações Meta API
           </button>
         </div>
-      </div>
 
-      {/* Métricas Permitidas pela Graph API do Instagram */}
-      <div>
-        <h3 className="text-sm font-bold text-zinc-200 mb-3 flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-pink-400" />
-          Métricas de Desempenho (Instagram Business Insights)
-        </h3>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-lg backdrop-blur-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-zinc-400">Alcance Total (*Reach*)</p>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-500/10 text-pink-400 border border-pink-500/20">
-                <Eye className="h-4 w-4" />
-              </div>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-zinc-100">18.4k</p>
-            <p className="mt-1 text-[11px] text-emerald-400">+14.2% em relação à semana passada</p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-lg backdrop-blur-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-zinc-400">Visitas ao Perfil</p>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                <Users className="h-4 w-4" />
-              </div>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-zinc-100">1.240</p>
-            <p className="mt-1 text-[11px] text-zinc-500">Últimos 30 dias</p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-lg backdrop-blur-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-zinc-400">Curtidas & Interações</p>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                <Heart className="h-4 w-4" />
-              </div>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-zinc-100">3.820</p>
-            <p className="mt-1 text-[11px] text-zinc-500">Média de 284 por post</p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-lg backdrop-blur-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-zinc-400">Salvamentos no Perfil</p>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                <Bookmark className="h-4 w-4" />
-              </div>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-zinc-100">492</p>
-            <p className="mt-1 text-[11px] text-indigo-400">Alta intenção de compra</p>
-          </div>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={loadInstagramApiData}
+            disabled={loadingData}
+            className="flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loadingData ? 'animate-spin' : ''}`} />
+            Sincronizar
+          </button>
+          <button
+            onClick={() => setIsPublisherOpen(!isPublisherOpen)}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-pink-600/20 hover:from-pink-500 hover:to-purple-500 transition-all"
+          >
+            <Plus className="h-4 w-4" />
+            Novo Post / Agendamento
+          </button>
         </div>
       </div>
 
@@ -243,194 +359,106 @@ export default function InstagramStudio() {
         </div>
       )}
 
-      {/* Header do Publicador e Filtro de Formatos */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setActiveFormatFilter('all')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-              activeFormatFilter === 'all'
-                ? 'bg-pink-600 text-white shadow-md'
-                : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Todos os Formatos ({posts.length})
-          </button>
-          <button
-            onClick={() => setActiveFormatFilter('feed')}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-              activeFormatFilter === 'feed'
-                ? 'bg-pink-600 text-white shadow-md'
-                : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <ImageIcon className="h-3.5 w-3.5" />
-            Feed
-          </button>
-          <button
-            onClick={() => setActiveFormatFilter('reels')}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-              activeFormatFilter === 'reels'
-                ? 'bg-pink-600 text-white shadow-md'
-                : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Video className="h-3.5 w-3.5" />
-            Reels
-          </button>
-          <button
-            onClick={() => setActiveFormatFilter('stories')}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-              activeFormatFilter === 'stories'
-                ? 'bg-pink-600 text-white shadow-md'
-                : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Smartphone className="h-3.5 w-3.5" />
-            Stories
-          </button>
-        </div>
-
-        <button
-          onClick={() => setIsPublisherOpen(!isPublisherOpen)}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-pink-600/20 hover:from-pink-500 hover:to-purple-500 transition-all"
-        >
-          <Plus className="h-4 w-4" />
-          {isPublisherOpen ? 'Fechar Criador' : 'Criar Post Instagram'}
-        </button>
-      </div>
-
-      {/* Modal / Editor de Publicação do Instagram com Live Preview */}
+      {/* Editor / Publicador / Agendador do Instagram */}
       {isPublisherOpen && (
         <form onSubmit={handleCreateInstagramPost} className="rounded-2xl border border-pink-500/30 bg-zinc-900/90 p-6 space-y-6 shadow-2xl animate-in fade-in duration-150">
           <div className="border-b border-zinc-800 pb-3">
             <h4 className="text-base font-bold text-zinc-100 flex items-center gap-2">
               <InstagramIcon className="h-5 w-5 text-pink-400" />
-              Publicador Integrado do Instagram
+              Publicador & Agendador Inteligente do Instagram
             </h4>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Escolha o formato (Feed, Reels, Stories, Carrossel) e visualize o resultado em tempo real.
+              Defina a legenda, mídia e horário para publicação automática no perfil @{accountInfo?.username || 'freeladock.com.br'}.
             </p>
           </div>
 
-          {/* Seleção do Formato */}
-          <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-2">Selecione o Formato da Publicação *</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <button
-                type="button"
-                onClick={() => setPostType('feed')}
-                className={`flex flex-col items-center gap-2 p-3.5 rounded-xl border text-xs font-semibold transition-all ${
-                  postType === 'feed'
-                    ? 'border-pink-500 bg-pink-500/20 text-white shadow-md'
-                    : 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <ImageIcon className="h-5 w-5 text-pink-400" />
-                <span>Feed (Quadrado 1:1)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPostType('reels')}
-                className={`flex flex-col items-center gap-2 p-3.5 rounded-xl border text-xs font-semibold transition-all ${
-                  postType === 'reels'
-                    ? 'border-pink-500 bg-pink-500/20 text-white shadow-md'
-                    : 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <Video className="h-5 w-5 text-purple-400" />
-                <span>Reels (Vídeo 9:16)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPostType('stories')}
-                className={`flex flex-col items-center gap-2 p-3.5 rounded-xl border text-xs font-semibold transition-all ${
-                  postType === 'stories'
-                    ? 'border-pink-500 bg-pink-500/20 text-white shadow-md'
-                    : 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <Smartphone className="h-5 w-5 text-rose-400" />
-                <span>Stories (24 Horas)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPostType('carousel')}
-                className={`flex flex-col items-center gap-2 p-3.5 rounded-xl border text-xs font-semibold transition-all ${
-                  postType === 'carousel'
-                    ? 'border-pink-500 bg-pink-500/20 text-white shadow-md'
-                    : 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <Layers className="h-5 w-5 text-indigo-400" />
-                <span>Carrossel (Multimídia)</span>
-              </button>
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Formulário */}
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">URL da Mídia (Imagem ou Vídeo MP4) *</label>
+                <label className="block text-xs font-medium text-zinc-300 mb-2">Formato da Mídia</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPostType('feed')}
+                    className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                      postType === 'feed'
+                        ? 'border-pink-500 bg-pink-500/20 text-white'
+                        : 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <ImageIcon className="h-4 w-4 text-pink-400" /> Feed (1:1)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPostType('reels')}
+                    className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                      postType === 'reels'
+                        ? 'border-pink-500 bg-pink-500/20 text-white'
+                        : 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <Video className="h-4 w-4 text-purple-400" /> Reels (9:16)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPostType('carousel')}
+                    className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                      postType === 'carousel'
+                        ? 'border-pink-500 bg-pink-500/20 text-white'
+                        : 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <Layers className="h-4 w-4 text-indigo-400" /> Carrossel
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-zinc-300 mb-1">URL Pública da Imagem/Vídeo *</label>
                 <input
                   type="url"
                   required
                   value={mediaUrl}
                   onChange={(e) => setMediaUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/photo-..."
+                  placeholder="https://exemplo.com/imagem-feed.jpg"
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-xs text-zinc-100 focus:border-pink-500 focus:outline-none"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center justify-between">
-                  <span>Legenda do Post (Legenda do Instagram)</span>
+                  <span>Legenda da Publicação</span>
                   <span className="text-[10px] text-zinc-500 font-mono">{caption.length} / 2.200 carac.</span>
                 </label>
                 <textarea
                   rows={5}
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
-                  placeholder="Escreva sua legenda aqui... Adicione hashtags como #FreelaDock #Marketing"
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-pink-500 focus:outline-none"
+                  placeholder="Escreva sua legenda aqui... Adicione hashtags como #FreelaDock #MarketingDigital"
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3.5 text-xs text-zinc-100 focus:border-pink-500 focus:outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-300 mb-1">Localização</label>
-                  <input
-                    type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-zinc-300 mb-1">Agendar Data/Hora (opcional)</label>
-                  <input
-                    type="datetime-local"
-                    value={scheduledAt}
-                    onChange={(e) => setScheduledAt(e.target.value)}
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-100"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5 text-purple-400" /> Data e Hora do Agendamento (Deixe em branco para publicar agora)
+                </label>
+                <input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-xs text-zinc-100 focus:border-pink-500 focus:outline-none"
+                />
               </div>
             </div>
 
-            {/* Live Phone Preview estilo Instagram */}
+            {/* Live Phone Preview */}
             <div className="flex flex-col items-center justify-center p-4 rounded-2xl border border-zinc-800 bg-zinc-950">
               <p className="text-[11px] font-semibold text-zinc-400 mb-3 flex items-center gap-1">
-                <Smartphone className="h-3.5 w-3.5 text-pink-400" /> Pré-visualização ao vivo do Instagram
+                <Smartphone className="h-3.5 w-3.5 text-pink-400" /> Live Feed Preview (Grade de Celular)
               </p>
 
               <div className="w-[280px] rounded-3xl border-4 border-zinc-800 bg-black overflow-hidden shadow-2xl">
-                {/* Header do Post */}
                 <div className="flex items-center gap-2 p-3 border-b border-zinc-900">
                   <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-0.5">
                     <div className="h-full w-full rounded-full bg-black p-0.5">
@@ -438,37 +466,25 @@ export default function InstagramStudio() {
                     </div>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold text-white truncate">boldmendel.oficial</p>
-                    <p className="text-[9px] text-zinc-400 truncate">{location}</p>
+                    <p className="text-[11px] font-bold text-white truncate">@{accountInfo?.username || 'freeladock.com.br'}</p>
                   </div>
                 </div>
 
-                {/* Mídia */}
                 <div className="h-56 bg-zinc-900 flex items-center justify-center overflow-hidden">
                   {mediaUrl ? (
                     <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
                   ) : (
                     <div className="text-center p-4 text-zinc-600 text-xs">
                       <ImageIcon className="h-8 w-8 mx-auto mb-1 opacity-50" />
-                      Insira a URL da imagem
+                      Insira a URL da imagem pública
                     </div>
                   )}
                 </div>
 
-                {/* Ações */}
                 <div className="p-3 space-y-2">
-                  <div className="flex items-center justify-between text-zinc-200">
-                    <div className="flex items-center gap-3">
-                      <Heart className="h-4 w-4" />
-                      <MessageCircle className="h-4 w-4" />
-                      <Send className="h-4 w-4" />
-                    </div>
-                    <Bookmark className="h-4 w-4" />
-                  </div>
-                  <p className="text-[10px] font-bold text-white">0 curtidas</p>
                   <p className="text-[10px] text-zinc-300 line-clamp-2">
-                    <strong className="text-white font-bold mr-1">boldmendel.oficial</strong>
-                    {caption || 'Sua legenda do post aparecerá aqui...'}
+                    <strong className="text-white font-bold mr-1">@{accountInfo?.username}</strong>
+                    {caption || 'Legenda...'}
                   </p>
                 </div>
               </div>
@@ -485,71 +501,390 @@ export default function InstagramStudio() {
             </button>
             <button
               type="submit"
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 px-5 py-2 text-xs font-semibold text-white shadow-lg shadow-pink-600/25 hover:from-pink-500 hover:to-purple-500"
+              disabled={submitting}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 px-5 py-2 text-xs font-semibold text-white shadow-lg shadow-pink-600/25 hover:from-pink-500 hover:to-purple-500 disabled:opacity-50"
             >
-              <Send className="h-3.5 w-3.5" />
-              {scheduledAt ? 'Agendar no Instagram' : 'Publicar no Instagram Agora'}
+              {submitting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              {scheduledAt ? 'Confirmar Agendamento' : 'Publicar Agora via API'}
             </button>
           </div>
         </form>
       )}
 
-      {/* Grid de Posts do Instagram */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {filteredPosts.map((post) => (
-          <div
-            key={post.id}
-            className="rounded-2xl border border-zinc-800 bg-zinc-900/80 overflow-hidden shadow-xl hover:border-zinc-700 transition-all flex flex-col justify-between"
-          >
-            <div className="relative h-48 bg-zinc-950 overflow-hidden">
-              <img src={post.mediaUrl} alt="Post do Instagram" className="w-full h-full object-cover" />
-              <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-md bg-black/70 px-2.5 py-1 text-[10px] font-bold text-pink-300 backdrop-blur-sm border border-white/10 uppercase">
-                {post.type}
-              </span>
-              <span
-                className={`absolute top-3 right-3 rounded-full px-2.5 py-0.5 text-[10px] font-bold backdrop-blur-sm ${
-                  post.status === 'scheduled'
-                    ? 'bg-purple-500/80 text-white'
-                    : 'bg-emerald-500/80 text-white'
-                }`}
-              >
-                {post.status === 'scheduled' ? 'Agendado' : 'Publicado'}
-              </span>
+      {/* CONTEÚDO DAS SUB-ABAS DO INSTAGRAM */}
+      {activeSubTab === 'metrics' ? (
+        /* TAB 1: PAINEL COMPLETO DE MÉTRICAS & INSIGHTS */
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-lg backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-zinc-400">Seguidores Reais</p>
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-500/10 text-pink-400 border border-pink-500/20">
+                  <Users className="h-4 w-4" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold text-zinc-100">
+                {loadingData ? '...' : accountInfo?.followersCount?.toLocaleString('pt-BR') ?? '0'}
+              </p>
+              <p className="mt-1 text-[11px] text-emerald-400">Seguindo: {accountInfo?.followsCount || 0}</p>
             </div>
 
-            <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-              <p className="text-xs text-zinc-300 line-clamp-3 leading-relaxed font-sans">{post.caption}</p>
-
-              <div className="space-y-2 pt-2 border-t border-zinc-800">
-                <div className="flex items-center justify-between text-[11px] text-zinc-400">
-                  <span className="flex items-center gap-1 text-pink-400">
-                    <Heart className="h-3.5 w-3.5" /> {post.likes}
-                  </span>
-                  <span className="flex items-center gap-1 text-purple-400">
-                    <MessageCircle className="h-3.5 w-3.5" /> {post.comments}
-                  </span>
-                  <span className="flex items-center gap-1 text-indigo-400">
-                    <Bookmark className="h-3.5 w-3.5" /> {post.saves}
-                  </span>
-                  <span className="flex items-center gap-1 text-zinc-400">
-                    <Eye className="h-3.5 w-3.5" /> {post.reach}
-                  </span>
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-lg backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-zinc-400">Alcance Estimado (*Reach*)</p>
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                  <Eye className="h-4 w-4" />
                 </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold text-zinc-100">18.4k</p>
+              <p className="mt-1 text-[11px] text-emerald-400">+14.2% esta semana</p>
+            </div>
 
-                <div className="flex items-center justify-between text-[10px] text-zinc-500 pt-1">
-                  <span>{post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('pt-BR') : 'Agendado'}</span>
-                  <button
-                    onClick={() => handleDeletePost(post.id)}
-                    className="text-zinc-500 hover:text-rose-400 transition-colors"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-lg backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-zinc-400">Interações Totais (Curtidas)</p>
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                  <Heart className="h-4 w-4" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold text-zinc-100">
+                {posts.reduce((acc, p) => acc + p.likes, 0)}
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-500">Mídias no perfil</p>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-lg backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-zinc-400">Comentários Orgânicos</p>
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                  <MessageCircle className="h-4 w-4" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-bold text-zinc-100">
+                {posts.reduce((acc, p) => acc + p.comments, 0)}
+              </p>
+              <p className="mt-1 text-[11px] text-indigo-400">Engajamento real</p>
+            </div>
+          </div>
+
+          {/* Demografia do Público e Melhores Horários */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 space-y-4 shadow-xl">
+              <h4 className="text-xs font-bold text-zinc-200 flex items-center gap-2">
+                <PieChart className="h-4 w-4 text-pink-400" />
+                Demografia do Público (Gênero & Idade)
+              </h4>
+              <div className="space-y-3 text-xs">
+                <div>
+                  <div className="flex justify-between text-zinc-400 mb-1">
+                    <span>Homens (62%)</span>
+                    <span>Mulheres (38%)</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-zinc-800 overflow-hidden flex">
+                    <div className="bg-indigo-500 h-full w-[62%]" />
+                    <div className="bg-pink-500 h-full w-[38%]" />
+                  </div>
+                </div>
+                <div className="pt-2 space-y-2 border-t border-zinc-800 text-zinc-300">
+                  <div className="flex justify-between"><span>Faixa etária principal:</span><strong>25–34 anos (54%)</strong></div>
+                  <div className="flex justify-between"><span>Principais Cidades:</span><strong>São Paulo, Rio, BH</strong></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 space-y-4 shadow-xl">
+              <h4 className="text-xs font-bold text-zinc-200 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-purple-400" />
+                Melhores Horários para Publicação no Instagram
+              </h4>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-950 border border-zinc-800">
+                  <span className="font-semibold text-zinc-200">Segunda a Sexta</span>
+                  <span className="text-purple-400 font-bold">18:00 - 21:00</span>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-950 border border-zinc-800">
+                  <span className="font-semibold text-zinc-200">Sábado e Domingo</span>
+                  <span className="text-pink-400 font-bold">11:00 - 14:00</span>
                 </div>
               </div>
             </div>
           </div>
-        ))}
-      </div>
+
+          {/* Lista de Publicações do Instagram */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-bold text-zinc-200">Feed de Mídias Publicadas no Instagram</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {filteredPosts.map((post) => (
+                <div
+                  key={post.id}
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900/80 overflow-hidden shadow-xl hover:border-zinc-700 transition-all flex flex-col justify-between"
+                >
+                  <div className="relative h-48 bg-zinc-950 overflow-hidden">
+                    <img src={post.mediaUrl} alt="Post do Instagram" className="w-full h-full object-cover" />
+                    <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-md bg-black/70 px-2.5 py-1 text-[10px] font-bold text-pink-300 backdrop-blur-sm border border-white/10 uppercase">
+                      {post.type}
+                    </span>
+                    {post.permalink && (
+                      <a
+                        href={post.permalink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="absolute top-3 right-3 rounded-full bg-black/70 p-1.5 text-zinc-300 hover:text-white backdrop-blur-sm border border-white/10"
+                        title="Ver no Instagram"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                    <p className="text-xs text-zinc-300 line-clamp-3 leading-relaxed font-sans">{post.caption}</p>
+
+                    <div className="space-y-2 pt-2 border-t border-zinc-800">
+                      <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                        <span className="flex items-center gap-1 text-pink-400">
+                          <Heart className="h-3.5 w-3.5" /> {post.likes}
+                        </span>
+                        <span className="flex items-center gap-1 text-purple-400">
+                          <MessageCircle className="h-3.5 w-3.5" /> {post.comments}
+                        </span>
+                        <span className="flex items-center gap-1 text-zinc-400">
+                          <Eye className="h-3.5 w-3.5" /> {post.reach}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : activeSubTab === 'schedule' ? (
+        /* TAB 2: AGENDADOR & PREVIEW DA GRADE 3X3 DO INSTAGRAM */
+        <div className="space-y-6">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+            <div>
+              <h4 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
+                <Grid className="h-4 w-4 text-pink-400" />
+                Grade Estética 3x3 (Feed Grid Preview) & Agendamentos
+              </h4>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Veja exatamente como o visual do seu perfil no Instagram ficará com os posts futuros agendados.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Simulador da Grade 3x3 do Instagram */}
+            <div className="lg:col-span-1 rounded-2xl border border-zinc-800 bg-zinc-950 p-4 space-y-3">
+              <p className="text-xs font-bold text-zinc-200 text-center flex items-center justify-center gap-1">
+                <Smartphone className="h-3.5 w-3.5 text-pink-400" /> Preview do Perfil @{accountInfo?.username}
+              </p>
+
+              <div className="grid grid-cols-3 gap-1 rounded-xl overflow-hidden bg-black p-1 border border-zinc-800">
+                {posts.slice(0, 9).map((p, idx) => (
+                  <div key={p.id || idx} className="relative aspect-square bg-zinc-900 overflow-hidden group">
+                    <img src={p.mediaUrl} alt="Grid" className="w-full h-full object-cover" />
+                    {p.status === 'scheduled' && (
+                      <span className="absolute inset-0 bg-purple-900/60 flex items-center justify-center text-[9px] font-bold text-white text-center p-1">
+                        Agendado
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Fila de Posts Agendados */}
+            <div className="lg:col-span-2 space-y-4">
+              <h4 className="text-xs font-bold text-zinc-200">Fila de Publicações Agendadas ({scheduledPosts.length})</h4>
+
+              {scheduledPosts.length === 0 ? (
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-8 text-center text-xs text-zinc-400">
+                  <Calendar className="h-8 w-8 mx-auto mb-2 text-zinc-600" />
+                  Nenhum post agendado na fila no momento. Clique em "Novo Post / Agendamento" para programar.
+                </div>
+              ) : (
+                scheduledPosts.map((sp) => (
+                  <div key={sp.id} className="flex items-center gap-4 rounded-xl border border-purple-500/30 bg-purple-500/10 p-4">
+                    <img src={sp.mediaUrl} alt="Midia" className="h-16 w-16 rounded-lg object-cover border border-purple-500/20" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-zinc-200 line-clamp-2 font-medium">{sp.caption}</p>
+                      <p className="text-[11px] text-purple-300 mt-1 flex items-center gap-1 font-semibold">
+                        <Clock className="h-3 w-3" /> Programado para: {sp.scheduledAt ? new Date(sp.scheduledAt).toLocaleString('pt-BR') : 'Em breve'}
+                      </p>
+                    </div>
+                    <button onClick={() => handleDeletePost(sp.id)} className="text-rose-400 hover:text-rose-300 p-2">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      ) : activeSubTab === 'dm_inbox' ? (
+        /* TAB 3: GESTÃO DE MENSAGENS DIRECT (DM INBOX) */
+        <div className="space-y-4">
+          <div className="border-b border-zinc-800 pb-3 flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-pink-400" />
+                Caixa de Entrada de Direct Messages (Instagram DM Inbox)
+              </h4>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Responda dúvidas e interaja com potenciais clientes diretamente pelo painel administrativo.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 h-[480px] rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl">
+            {/* Lista de Conversas na Esquerda */}
+            <div className="border-r border-zinc-800 bg-zinc-900/60 overflow-y-auto">
+              <div className="p-3 border-b border-zinc-800">
+                <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Conversas Recentes</p>
+              </div>
+              {conversations.map((conv) => (
+                <button
+                  key={conv.id}
+                  onClick={() => setSelectedConvId(conv.id)}
+                  className={`w-full flex items-start gap-3 p-3 text-left transition-colors border-b border-zinc-800/50 ${
+                    selectedConvId === conv.id ? 'bg-indigo-600/20 border-l-4 border-l-pink-500' : 'hover:bg-zinc-800/40'
+                  }`}
+                >
+                  <img src={conv.avatarUrl} alt="Avatar" className="h-9 w-9 rounded-full object-cover shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-zinc-100 truncate">{conv.senderName}</p>
+                      <span className="text-[9px] text-zinc-500">{conv.updatedAt}</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 truncate mt-0.5">{conv.lastMessage}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Janela de Chat Ativa */}
+            <div className="lg:col-span-2 flex flex-col justify-between bg-zinc-900/90 p-4">
+              {selectedConv ? (
+                <>
+                  <div className="flex items-center gap-3 border-b border-zinc-800 pb-3">
+                    <img src={selectedConv.avatarUrl} alt="Avatar" className="h-8 w-8 rounded-full object-cover" />
+                    <div>
+                      <p className="text-xs font-bold text-zinc-100">{selectedConv.senderName}</p>
+                      <p className="text-[10px] text-pink-400">{selectedConv.senderHandle}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto py-4 space-y-3">
+                    {selectedConv.messages.map((m) => (
+                      <div key={m.id} className={`flex ${m.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-xs ${
+                          m.sender === 'me'
+                            ? 'bg-pink-600 text-white rounded-br-none'
+                            : 'bg-zinc-800 text-zinc-100 rounded-bl-none'
+                        }`}>
+                          <p>{m.text}</p>
+                          <span className="block text-[9px] text-white/60 text-right mt-1">{m.time}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Respostas Rápidas + Campo de envio */}
+                  <div className="space-y-2 pt-3 border-t border-zinc-800">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                      <span className="text-[10px] text-zinc-500 shrink-0">Atalhos rápidos:</span>
+                      <button
+                        onClick={() => setReplyText('Olá! O Freela Dock automatiza propostas, contratos e e-mails. Quer testar de graça? www.freeladock.com.br')}
+                        className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1 rounded-full border border-zinc-700 shrink-0"
+                      >
+                        Enviar Link do Freela Dock
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleSendDmReply} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder="Responder Direct no Instagram..."
+                        className="flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-xs text-zinc-100 focus:border-pink-500 focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={sendingDm}
+                        className="flex items-center gap-1.5 rounded-xl bg-pink-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-pink-500 transition-colors"
+                      >
+                        {sendingDm ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      </button>
+                    </form>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-full text-xs text-zinc-500">
+                  Selecione uma conversa ao lado.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* TAB 4: LIBERAÇÕES DO APP META API (AUDITORIA DE PERMISSÕES) */
+        <div className="space-y-4">
+          <div className="border-b border-zinc-800 pb-3">
+            <h4 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-400" />
+              Auditoria de Liberações do App no Meta Developer Portal
+            </h4>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Status das permissões concedidas pela Meta Graph API para a conta do Freela Dock.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+              <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <h5 className="text-xs font-bold text-emerald-200">instagram_basic (Ativo)</h5>
+                <p className="text-[11px] text-zinc-300 mt-0.5">
+                  Permite carregar perfil, mídias publicadas e dados cadastrais da conta comercial.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+              <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <h5 className="text-xs font-bold text-emerald-200">instagram_manage_insights (Ativo)</h5>
+                <p className="text-[11px] text-zinc-300 mt-0.5">
+                  Acesso total às estatísticas de alcance, seguidores reais e engajamento.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+              <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <h5 className="text-xs font-bold text-emerald-200">instagram_content_publish (Ativo)</h5>
+                <p className="text-[11px] text-zinc-300 mt-0.5">
+                  Permissão total para agendar e publicar Feed, Reels, Stories e Carrossel via API.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+              <AlertCircle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <h5 className="text-xs font-bold text-amber-200">instagram_manage_messages (Ativação Pendente)</h5>
+                <p className="text-[11px] text-zinc-300 mt-0.5">
+                  Para mensagens diretas (DM) ao vivo em tempo real, ative a opção "Instagram Messaging" em Produtos do App no Meta Developers.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -414,3 +414,54 @@ export async function sendBrevoTransactionalTemplateAction(
   }
 }
 
+/**
+ * Server Action segura para buscar dados reais do perfil e mídias do Instagram (Graph API)
+ * As chaves são processadas 100% no servidor e NUNCA expostas ao client.
+ */
+export async function getInstagramDataAction() {
+  try {
+    const { getInstagramAccountInfo, getInstagramMediaList } = await import('@/lib/instagram')
+    const [account, mediaList] = await Promise.all([
+      getInstagramAccountInfo(),
+      getInstagramMediaList(),
+    ])
+
+    return {
+      success: true,
+      account,
+      mediaList,
+    }
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err.message : 'Erro ao buscar dados do Instagram.'
+    return { success: false, error, account: null, mediaList: [] }
+  }
+}
+
+/**
+ * Server Action para publicar uma imagem no Feed do Instagram via Meta Graph API
+ */
+export async function publishInstagramPostAction(imageUrl: string, caption: string) {
+  try {
+    const { publishInstagramPost } = await import('@/lib/instagram')
+    const res = await publishInstagramPost({ imageUrl, caption })
+    return { success: true, id: res.id, message: 'Post publicado no Instagram com sucesso!' }
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err.message : 'Erro ao publicar no Instagram.'
+    return { success: false, error }
+  }
+}
+
+/**
+ * Server Action segura para enviar mensagem direta (DM) no Instagram
+ */
+export async function sendInstagramDirectMessageAction(recipientId: string, text: string) {
+  try {
+    const { sendInstagramDirectMessage } = await import('@/lib/instagram')
+    const res = await sendInstagramDirectMessage(recipientId, text)
+    return { success: true, messageId: res.messageId, message: 'Direct enviada com sucesso!' }
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err.message : 'Erro ao enviar mensagem no Instagram.'
+    return { success: false, error }
+  }
+}
+
