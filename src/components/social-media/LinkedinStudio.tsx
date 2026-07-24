@@ -23,6 +23,12 @@ import {
   Globe,
 } from 'lucide-react'
 
+import {
+  publishLinkedinPostAction,
+  getLinkedinAuthUrlAction,
+  getLinkedinStatsAction,
+} from '@/app/actions/linkedin'
+
 function LinkedinIcon({ className = 'h-5 w-5' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -51,6 +57,7 @@ export default function LinkedinStudio() {
   const [content, setContent] = useState('')
   const [mediaUrl, setMediaUrl] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const [posts, setPosts] = useState<LinkedinPostItem[]>([
@@ -80,15 +87,35 @@ export default function LinkedinStudio() {
     },
   ])
 
-  function handleCreateLinkedinPost(e: React.FormEvent) {
+  async function handleConnectOAuth() {
+    const res = await getLinkedinAuthUrlAction()
+    if (res.success && res.authUrl) {
+      window.location.href = res.authUrl
+    } else {
+      setFeedback({ type: 'error', text: res.error || 'Erro ao gerar URL de autorização do LinkedIn.' })
+    }
+  }
+
+  async function handleCreateLinkedinPost(e: React.FormEvent) {
     e.preventDefault()
     if (!content.trim()) {
       setFeedback({ type: 'error', text: 'Escreva o texto da publicação do LinkedIn.' })
       return
     }
 
+    setSubmitting(true)
+    setFeedback(null)
+
+    const res = await publishLinkedinPostAction({
+      text: content.trim(),
+      mediaUrl: mediaUrl.trim() || undefined,
+      title: 'Freela Dock | CRM Freelancer',
+    })
+
+    setSubmitting(false)
+
     const newPost: LinkedinPostItem = {
-      id: `li-${Date.now()}`,
+      id: res.id || `li-${Date.now()}`,
       type: postType,
       content,
       mediaUrl: mediaUrl.trim() || undefined,
@@ -106,7 +133,12 @@ export default function LinkedinStudio() {
     setContent('')
     setMediaUrl('')
     setScheduledAt('')
-    setFeedback({ type: 'success', text: 'Publicação cadastrada com sucesso para a página do LinkedIn!' })
+
+    if (res.success) {
+      setFeedback({ type: 'success', text: 'Publicação enviada com sucesso para a página do LinkedIn do Freela Dock!' })
+    } else {
+      setFeedback({ type: 'error', text: res.error || 'Salvo localmente. Conecte o OAuth para publicar na API.' })
+    }
   }
 
   function handleDeletePost(id: string) {
@@ -126,22 +158,22 @@ export default function LinkedinStudio() {
               <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
                 LinkedIn Company Page API (Freela Dock)
                 <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
-                  Conectado
+                  Credenciais Configuradas
                 </span>
               </h3>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Organização: <strong>Freela Dock</strong> • ID da Organização: urn:li:organization:928374
+                Organização: <strong>Freela Dock</strong> • ID: <code>urn:li:organization:135255912</code> • App ID: <code>77qatamj12pack</code>
               </p>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={() => alert('As chaves OAuth 2.0 do LinkedIn Developer App estão prontas para inclusão.')}
+            onClick={handleConnectOAuth}
             className="flex items-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 px-3.5 py-2 text-xs font-semibold text-blue-300 hover:bg-blue-500/20 transition-colors shrink-0"
           >
             <Key className="h-3.5 w-3.5" />
-            Gerenciar Credenciais OAuth
+            Autorizar OAuth 2.0 LinkedIn
           </button>
         </div>
       </div>
