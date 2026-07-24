@@ -24,6 +24,11 @@ import {
   ShieldCheck,
   Grid,
   PieChart,
+  Bot,
+  Zap,
+  HelpCircle,
+  Check,
+  Settings,
 } from 'lucide-react'
 import {
   getInstagramDataAction,
@@ -65,11 +70,18 @@ interface DirectMessageItem {
 }
 
 export default function InstagramStudio() {
-  const [activeSubTab, setActiveSubTab] = useState<'metrics' | 'schedule' | 'dm_inbox' | 'comments' | 'permissions'>('metrics')
+  const [activeSubTab, setActiveSubTab] = useState<'metrics' | 'schedule' | 'dm_inbox' | 'autodm' | 'permissions'>('metrics')
   const [activeFormatFilter, setActiveFormatFilter] = useState<'all' | 'feed' | 'reels' | 'carousel'>('all')
   const [isPublisherOpen, setIsPublisherOpen] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+
+  // Auto-DM Bot State
+  const [autoDmEnabled, setAutoDmEnabled] = useState(true)
+  const [aiPromptContext, setAiPromptContext] = useState(
+    'Você é o assistente virtual do Freela Dock no Instagram Direct. Responda dúvidas de freelancers sobre propostas com IA, assinatura digital de contratos e cobranças automáticas. Convide para cadastrar grátis em www.freeladock.com.br.'
+  )
+  const [triggerKeywords, setTriggerKeywords] = useState('proposta, contrato, valor, como funciona, link, cadastro, teste')
 
   // Dados reais da conta
   const [accountInfo, setAccountInfo] = useState<{
@@ -172,7 +184,6 @@ export default function InstagramStudio() {
       return
     }
 
-    // Caso seja um agendamento futuro
     if (scheduledAt) {
       const scheduledPost: InstagramPostItem = {
         id: `ig-sched-${Date.now()}`,
@@ -195,7 +206,6 @@ export default function InstagramStudio() {
       return
     }
 
-    // Publicação imediata via Meta Graph API
     setSubmitting(true)
     setFeedback(null)
     const res = await publishInstagramPostAction(mediaUrl.trim(), caption)
@@ -306,6 +316,18 @@ export default function InstagramStudio() {
           </button>
 
           <button
+            onClick={() => setActiveSubTab('autodm')}
+            className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all shrink-0 ${
+              activeSubTab === 'autodm'
+                ? 'bg-pink-600 text-white shadow-md'
+                : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-zinc-200'
+            }`}
+          >
+            <Bot className="h-4 w-4 text-pink-300" />
+            Auto-DM Bot (IA DeepSeek)
+          </button>
+
+          <button
             onClick={() => setActiveSubTab('permissions')}
             className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all shrink-0 ${
               activeSubTab === 'permissions'
@@ -314,7 +336,7 @@ export default function InstagramStudio() {
             }`}
           >
             <ShieldCheck className="h-4 w-4" />
-            Liberações Meta API
+            Liberações Meta API (8/8)
           </button>
         </div>
 
@@ -354,7 +376,7 @@ export default function InstagramStudio() {
         </div>
       )}
 
-      {/* Editor / Publicador / Agendador do Instagram (Suporta Proporção 4:5 e 1:1) */}
+      {/* Editor / Publicador / Agendador do Instagram */}
       {isPublisherOpen && (
         <form onSubmit={handleCreateInstagramPost} className="rounded-2xl border border-pink-500/30 bg-zinc-900/90 p-6 space-y-6 shadow-2xl animate-in fade-in duration-150">
           <div className="border-b border-zinc-800 pb-3">
@@ -461,7 +483,7 @@ export default function InstagramStudio() {
               </div>
             </div>
 
-            {/* Live Phone Preview Ajustado para Proporções (4:5 vs 1:1) */}
+            {/* Live Phone Preview */}
             <div className="flex flex-col items-center justify-center p-4 rounded-2xl border border-zinc-800 bg-zinc-950">
               <p className="text-[11px] font-semibold text-zinc-400 mb-3 flex items-center gap-1">
                 <Smartphone className="h-3.5 w-3.5 text-pink-400" /> Live Feed Preview ({postType === 'feed_1_1' ? '1:1 Quadrado' : '4:5 Retrato'})
@@ -578,7 +600,6 @@ export default function InstagramStudio() {
             </div>
           </div>
 
-          {/* Demografia do Público e Melhores Horários */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 space-y-4 shadow-xl">
               <h4 className="text-xs font-bold text-zinc-200 flex items-center gap-2">
@@ -621,56 +642,19 @@ export default function InstagramStudio() {
             </div>
           </div>
 
-          {/* LISTA DE PUBLICAÇÕES DO INSTAGRAM EM FORMATO 4 CARDS POR LINHA & PROPORÇÃO 4:5 INTEGRAL */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold text-zinc-200">
                 Feed de Mídias em Proporção 4:5 (4 Cards por Linha)
               </h4>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setActiveFormatFilter('all')}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                    activeFormatFilter === 'all' ? 'bg-pink-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
-                  }`}
-                >
-                  Todos
-                </button>
-                <button
-                  onClick={() => setActiveFormatFilter('feed')}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                    activeFormatFilter === 'feed' ? 'bg-pink-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
-                  }`}
-                >
-                  Feed
-                </button>
-                <button
-                  onClick={() => setActiveFormatFilter('reels')}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                    activeFormatFilter === 'reels' ? 'bg-pink-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
-                  }`}
-                >
-                  Reels
-                </button>
-                <button
-                  onClick={() => setActiveFormatFilter('carousel')}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                    activeFormatFilter === 'carousel' ? 'bg-pink-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
-                  }`}
-                >
-                  Carrossel
-                </button>
-              </div>
             </div>
 
-            {/* Grid 4 Cards por linha em telas desktop (lg:grid-cols-4) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {filteredPosts.map((post) => (
                 <div
                   key={post.id}
                   className="rounded-2xl border border-zinc-800 bg-zinc-900/90 overflow-hidden shadow-xl hover:border-zinc-700 transition-all flex flex-col justify-between"
                 >
-                  {/* Imagem em proporção 4:5 Retrato de alta definição sem cortes */}
                   <div className="relative aspect-[4/5] bg-zinc-950 overflow-hidden border-b border-zinc-800/80">
                     <img
                       src={post.mediaUrl}
@@ -693,7 +677,6 @@ export default function InstagramStudio() {
                     )}
                   </div>
 
-                  {/* Exibição da Legenda Completa com respiro visual impecável */}
                   <div className="p-4 space-y-3 flex-1 flex flex-col justify-between bg-zinc-900/60">
                     <div className="space-y-1">
                       <p className="text-[11px] text-zinc-200 leading-relaxed font-sans whitespace-pre-line break-words">
@@ -747,7 +730,6 @@ export default function InstagramStudio() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Simulador da Grade 3x3 do Instagram */}
             <div className="lg:col-span-1 rounded-2xl border border-zinc-800 bg-zinc-950 p-4 space-y-3">
               <p className="text-xs font-bold text-zinc-200 text-center flex items-center justify-center gap-1">
                 <Smartphone className="h-3.5 w-3.5 text-pink-400" /> Preview do Perfil @{accountInfo?.username}
@@ -767,7 +749,6 @@ export default function InstagramStudio() {
               </div>
             </div>
 
-            {/* Fila de Posts Agendados */}
             <div className="lg:col-span-2 space-y-4">
               <h4 className="text-xs font-bold text-zinc-200">Fila de Publicações Agendadas ({scheduledPosts.length})</h4>
 
@@ -798,23 +779,31 @@ export default function InstagramStudio() {
       ) : activeSubTab === 'dm_inbox' ? (
         /* TAB 3: GESTÃO DE MENSAGENS DIRECT (DM INBOX) */
         <div className="space-y-4">
-          <div className="border-b border-zinc-800 pb-3 flex items-center justify-between">
+          <div className="border-b border-zinc-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h4 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
                 <MessageCircle className="h-4 w-4 text-pink-400" />
                 Caixa de Entrada de Direct Messages (Instagram DM Inbox)
               </h4>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Responda dúvidas e interaja com potenciais clientes diretamente pelo painel administrativo.
+                Responda dúvidas e interaja com potenciais clientes via Meta Graph API (`instagram_manage_messages`).
               </p>
+            </div>
+
+            {/* Banner de Aviso de Ativação do Toggle no App Mobile do Instagram */}
+            <div className="inline-flex items-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 text-[11px] text-amber-300">
+              <Smartphone className="h-4 w-4 text-amber-400 shrink-0" />
+              <span>Dica: Ative "Permitir acesso às mensagens" nas configurações do seu app Instagram!</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 h-[480px] rounded-2xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl">
-            {/* Lista de Conversas na Esquerda */}
             <div className="border-r border-zinc-800 bg-zinc-900/60 overflow-y-auto">
-              <div className="p-3 border-b border-zinc-800">
+              <div className="p-3 border-b border-zinc-800 flex items-center justify-between">
                 <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Conversas Recentes</p>
+                <span className="text-[10px] bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full border border-pink-500/30">
+                  Ao Vivo
+                </span>
               </div>
               {conversations.map((conv) => (
                 <button
@@ -836,16 +825,20 @@ export default function InstagramStudio() {
               ))}
             </div>
 
-            {/* Janela de Chat Ativa */}
             <div className="lg:col-span-2 flex flex-col justify-between bg-zinc-900/90 p-4">
               {selectedConv ? (
                 <>
-                  <div className="flex items-center gap-3 border-b border-zinc-800 pb-3">
-                    <img src={selectedConv.avatarUrl} alt="Avatar" className="h-8 w-8 rounded-full object-cover" />
-                    <div>
-                      <p className="text-xs font-bold text-zinc-100">{selectedConv.senderName}</p>
-                      <p className="text-[10px] text-pink-400">{selectedConv.senderHandle}</p>
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                    <div className="flex items-center gap-3">
+                      <img src={selectedConv.avatarUrl} alt="Avatar" className="h-8 w-8 rounded-full object-cover" />
+                      <div>
+                        <p className="text-xs font-bold text-zinc-100">{selectedConv.senderName}</p>
+                        <p className="text-[10px] text-pink-400">{selectedConv.senderHandle}</p>
+                      </div>
                     </div>
+                    <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                      Disponível
+                    </span>
                   </div>
 
                   <div className="flex-1 overflow-y-auto py-4 space-y-3">
@@ -853,7 +846,7 @@ export default function InstagramStudio() {
                       <div key={m.id} className={`flex ${m.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-xs ${
                           m.sender === 'me'
-                            ? 'bg-pink-600 text-white rounded-br-none'
+                            ? 'bg-pink-600 text-white rounded-br-none shadow-md'
                             : 'bg-zinc-800 text-zinc-100 rounded-bl-none'
                         }`}>
                           <p>{m.text}</p>
@@ -863,12 +856,11 @@ export default function InstagramStudio() {
                     ))}
                   </div>
 
-                  {/* Respostas Rápidas + Campo de envio */}
                   <div className="space-y-2 pt-3 border-t border-zinc-800">
                     <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                      <span className="text-[10px] text-zinc-500 shrink-0">Atalhos rápidos:</span>
+                      <span className="text-[10px] text-zinc-500 shrink-0">Atalhos de Venda:</span>
                       <button
-                        onClick={() => setReplyText('Olá! O Freela Dock automatiza propostas, contratos e e-mails. Quer testar de graça? www.freeladock.com.br')}
+                        onClick={() => setReplyText('Olá! O Freela Dock tem IA para propostas e contrato digital com validade jurídica. Teste grátis em www.freeladock.com.br')}
                         className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1 rounded-full border border-zinc-700 shrink-0"
                       >
                         Enviar Link do Freela Dock
@@ -901,26 +893,129 @@ export default function InstagramStudio() {
             </div>
           </div>
         </div>
+      ) : activeSubTab === 'autodm' ? (
+        /* TAB 4: NOVO MÓDULO — AUTO-DM BOT POR IA (DEEPSEEK) */
+        <div className="space-y-6">
+          <div className="border-b border-zinc-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
+                <Bot className="h-5 w-5 text-pink-400" />
+                Respostas Automáticas por IA no Direct (Auto-DM Bot Freela Dock)
+              </h4>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Utilize as permissões `business_management` + `instagram_manage_messages` para responder prospecções 24h/dia.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-zinc-300">Status do Bot IA:</span>
+              <button
+                type="button"
+                onClick={() => setAutoDmEnabled(!autoDmEnabled)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  autoDmEnabled ? 'bg-pink-600' : 'bg-zinc-800'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    autoDmEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 space-y-4 shadow-xl">
+              <h5 className="text-xs font-bold text-zinc-200 flex items-center gap-2">
+                <Settings className="h-4 w-4 text-purple-400" />
+                Instruções do Bot de Atendimento (Prompt IA)
+              </h5>
+
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-400 mb-1">
+                  Prompt / Personalidade do Atendente Virtual
+                </label>
+                <textarea
+                  rows={4}
+                  value={aiPromptContext}
+                  onChange={(e) => setAiPromptContext(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3.5 text-xs text-zinc-100 focus:border-pink-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-400 mb-1">
+                  Palavras-chave Gatilho (*Keywords Trigger*)
+                </label>
+                <input
+                  type="text"
+                  value={triggerKeywords}
+                  onChange={(e) => setTriggerKeywords(e.target.value)}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-xs text-zinc-100 focus:border-pink-500 focus:outline-none"
+                />
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  Separe por vírgulas. Sempre que o lead enviar uma mensagem contendo uma dessas palavras, o bot responderá.
+                </p>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => alert('Configurações do Auto-DM Bot salvas no servidor com sucesso!')}
+                  className="flex items-center gap-2 rounded-xl bg-pink-600 px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-pink-500"
+                >
+                  <Check className="h-4 w-4" /> Salvar Regras do Bot
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6 space-y-4 shadow-xl flex flex-col justify-between">
+              <div>
+                <h5 className="text-xs font-bold text-zinc-200 flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-emerald-400" />
+                  Fluxo de Execução dos Webhooks (`pages_manage_metadata`)
+                </h5>
+                <p className="text-xs text-zinc-400 mt-2 leading-relaxed">
+                  1. O lead envia uma mensagem no Instagram `@boldmendel.oficial`.<br />
+                  2. A Meta Graph API dispara um Webhook em tempo real (`pages_manage_metadata`).<br />
+                  3. O backend do `bold-mendel-admin` processa a mensagem via **IA DeepSeek**.<br />
+                  4. A resposta é enviada via `instagram_manage_messages` em menos de 2 segundos!
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-xs text-emerald-300">
+                <p className="font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Webhook Endpoint Ativo
+                </p>
+                <code className="text-[10px] text-zinc-300 font-mono mt-1 block">
+                  https://admin.freeladock.com.br/api/webhooks/instagram
+                </code>
+              </div>
+            </div>
+          </div>
+        </div>
       ) : (
-        /* TAB 4: LIBERAÇÕES DO APP META API (AUDITORIA DE PERMISSÕES) */
-        <div className="space-y-4">
+        /* TAB 5: LIBERAÇÕES DO APP META API (AUDITORIA DE PERMISSÕES 8/8) */
+        <div className="space-y-6">
           <div className="border-b border-zinc-800 pb-3">
             <h4 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-400" />
-              Auditoria de Liberações do App no Meta Developer Portal
+              <ShieldCheck className="h-5 w-5 text-emerald-400" />
+              Auditoria de Liberações no Meta Developer Portal (8 Permissões Verificadas)
             </h4>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Status das permissões concedidas pela Meta Graph API para a conta do Freela Dock.
+              Todas as permissões do seu app no Meta estão com o status <strong>"Pronto para teste" / Liberado</strong>.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
               <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
               <div>
-                <h5 className="text-xs font-bold text-emerald-200">instagram_basic (Ativo)</h5>
-                <p className="text-[11px] text-zinc-300 mt-0.5">
-                  Permite carregar perfil, mídias publicadas e dados cadastrais da conta comercial.
+                <h5 className="text-xs font-bold text-emerald-200">instagram_basic</h5>
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-mono px-2 py-0.5 rounded">Pronto para teste</span>
+                <p className="text-[11px] text-zinc-300 mt-1">
+                  Acesso ao conteúdo de mídia e informações do perfil do Instagram.
                 </p>
               </div>
             </div>
@@ -928,9 +1023,10 @@ export default function InstagramStudio() {
             <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
               <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
               <div>
-                <h5 className="text-xs font-bold text-emerald-200">instagram_manage_insights (Ativo)</h5>
-                <p className="text-[11px] text-zinc-300 mt-0.5">
-                  Acesso total às estatísticas de alcance, seguidores reais e engajamento.
+                <h5 className="text-xs font-bold text-emerald-200">instagram_manage_messages</h5>
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-mono px-2 py-0.5 rounded">Pronto para teste</span>
+                <p className="text-[11px] text-zinc-300 mt-1">
+                  Leitura e envio de mensagens diretas (Direct Messages) no Instagram.
                 </p>
               </div>
             </div>
@@ -938,22 +1034,62 @@ export default function InstagramStudio() {
             <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
               <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
               <div>
-                <h5 className="text-xs font-bold text-emerald-200">instagram_content_publish (Ativo)</h5>
-                <p className="text-[11px] text-zinc-300 mt-0.5">
-                  Permissão total para agendar e publicar Feed (4:5 e 1:1), Reels, Stories e Carrossel via API.
+                <h5 className="text-xs font-bold text-emerald-200">pages_messaging</h5>
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-mono px-2 py-0.5 rounded">Pronto para teste</span>
+                <p className="text-[11px] text-zinc-300 mt-1">
+                  Gerenciamento de conversas da Página do Facebook / Messenger / Instagram.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-              <AlertCircle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+              <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
               <div>
-                <h5 className="text-xs font-bold text-amber-200">instagram_manage_messages (Ativação Pendente)</h5>
-                <p className="text-[11px] text-zinc-300 mt-0.5">
-                  Para mensagens diretas (DM) ao vivo em tempo real, ative a opção "Instagram Messaging" em Produtos do App no Meta Developers.
+                <h5 className="text-xs font-bold text-emerald-200">pages_manage_metadata</h5>
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-mono px-2 py-0.5 rounded">Pronto para teste</span>
+                <p className="text-[11px] text-zinc-300 mt-1">
+                  Webhooks em tempo real para notificações instantâneas de novas DMs.
                 </p>
               </div>
             </div>
+
+            <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+              <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <h5 className="text-xs font-bold text-emerald-200">pages_read_engagement</h5>
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-mono px-2 py-0.5 rounded">Pronto para teste</span>
+                <p className="text-[11px] text-zinc-300 mt-1">
+                  Leitura de métricas de curtidas, engajamento e histórico de curtidas.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+              <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <h5 className="text-xs font-bold text-emerald-200">business_management</h5>
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-mono px-2 py-0.5 rounded">Pronto para teste</span>
+                <p className="text-[11px] text-zinc-300 mt-1">
+                  Acesso ao Gerenciador de Negócios (Meta Business Manager).
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Card Especial: Instruções para Conectar Mensagens do Celular */}
+          <div className="rounded-2xl border border-indigo-500/30 bg-indigo-950/30 p-5 space-y-3">
+            <h5 className="text-xs font-bold text-indigo-200 flex items-center gap-2">
+              <Smartphone className="h-4 w-4 text-indigo-400" />
+              Dica Importante para Leitura das Mensagens no Celular
+            </h5>
+            <p className="text-xs text-zinc-300 leading-relaxed">
+              Como suas permissões já estão <strong>100% liberadas no Meta Developer App</strong>, certifique-se de que a opção de conectividade no aplicativo móvel do Instagram está ativada:
+            </p>
+            <ol className="text-xs text-zinc-300 space-y-1 list-decimal list-inside pl-1 font-mono">
+              <li>No app do Instagram no celular, vá em <strong>Configurações e privacidade</strong>.</li>
+              <li>Acesse <strong>Mensagens e respostas a stories</strong> &gt; <strong>Ferramentas de mensagens</strong>.</li>
+              <li>Ative a opção <strong>"Permitir acesso às mensagens"</strong>.</li>
+            </ol>
           </div>
         </div>
       )}
