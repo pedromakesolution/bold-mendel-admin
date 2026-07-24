@@ -34,6 +34,8 @@ import {
   getInstagramDataAction,
   publishInstagramPostAction,
 } from '@/app/actions/social-media'
+import InstagramRAGStudio from './InstagramRAGStudio'
+
 
 function InstagramIcon({ className = 'h-5 w-5' }: { className?: string }) {
   return (
@@ -894,107 +896,8 @@ export default function InstagramStudio() {
           </div>
         </div>
       ) : activeSubTab === 'autodm' ? (
-        /* TAB 4: NOVO MÓDULO — AUTO-DM BOT POR IA (DEEPSEEK) */
-        <div className="space-y-6">
-          <div className="border-b border-zinc-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h4 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
-                <Bot className="h-5 w-5 text-pink-400" />
-                Respostas Automáticas por IA no Direct (Auto-DM Bot Freela Dock)
-              </h4>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Utilize as permissões `business_management` + `instagram_manage_messages` para responder prospecções 24h/dia.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-zinc-300">Status do Bot IA:</span>
-              <button
-                type="button"
-                onClick={() => setAutoDmEnabled(!autoDmEnabled)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  autoDmEnabled ? 'bg-pink-600' : 'bg-zinc-800'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    autoDmEnabled ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 space-y-4 shadow-xl">
-              <h5 className="text-xs font-bold text-zinc-200 flex items-center gap-2">
-                <Settings className="h-4 w-4 text-purple-400" />
-                Instruções do Bot de Atendimento (Prompt IA)
-              </h5>
-
-              <div>
-                <label className="block text-[11px] font-medium text-zinc-400 mb-1">
-                  Prompt / Personalidade do Atendente Virtual
-                </label>
-                <textarea
-                  rows={4}
-                  value={aiPromptContext}
-                  onChange={(e) => setAiPromptContext(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3.5 text-xs text-zinc-100 focus:border-pink-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-zinc-400 mb-1">
-                  Palavras-chave Gatilho (*Keywords Trigger*)
-                </label>
-                <input
-                  type="text"
-                  value={triggerKeywords}
-                  onChange={(e) => setTriggerKeywords(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-xs text-zinc-100 focus:border-pink-500 focus:outline-none"
-                />
-                <p className="text-[10px] text-zinc-500 mt-1">
-                  Separe por vírgulas. Sempre que o lead enviar uma mensagem contendo uma dessas palavras, o bot responderá.
-                </p>
-              </div>
-
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => alert('Configurações do Auto-DM Bot salvas no servidor com sucesso!')}
-                  className="flex items-center gap-2 rounded-xl bg-pink-600 px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-pink-500"
-                >
-                  <Check className="h-4 w-4" /> Salvar Regras do Bot
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6 space-y-4 shadow-xl flex flex-col justify-between">
-              <div>
-                <h5 className="text-xs font-bold text-zinc-200 flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-emerald-400" />
-                  Fluxo de Execução dos Webhooks (`pages_manage_metadata`)
-                </h5>
-                <p className="text-xs text-zinc-400 mt-2 leading-relaxed">
-                  1. O lead envia uma mensagem no Instagram `@boldmendel.oficial`.<br />
-                  2. A Meta Graph API dispara um Webhook em tempo real (`pages_manage_metadata`).<br />
-                  3. O backend do `bold-mendel-admin` processa a mensagem via **IA DeepSeek**.<br />
-                  4. A resposta é enviada via `instagram_manage_messages` em menos de 2 segundos!
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-xs text-emerald-300">
-                <p className="font-semibold flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Webhook Endpoint Ativo
-                </p>
-                <code className="text-[10px] text-zinc-300 font-mono mt-1 block">
-                  https://admin.freeladock.com.br/api/webhooks/instagram
-                </code>
-              </div>
-            </div>
-          </div>
-        </div>
+        /* TAB 4: MÓDULO — AUTO-DM BOT POR IA (DEEPSEEK + RAG DEEPSEEK) */
+        <InstagramRAGStudio />
       ) : (
         /* TAB 5: LIBERAÇÕES DO APP META API (AUDITORIA DE PERMISSÕES 8/8) */
         <div className="space-y-6">
