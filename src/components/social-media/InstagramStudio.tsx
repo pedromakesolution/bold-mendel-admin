@@ -33,8 +33,10 @@ import {
 import {
   getInstagramDataAction,
   publishInstagramPostAction,
+  sendInstagramDirectMessageAction,
 } from '@/app/actions/social-media'
 import InstagramRAGStudio from './InstagramRAGStudio'
+
 
 
 function InstagramIcon({ className = 'h-5 w-5' }: { className?: string }) {
@@ -62,6 +64,7 @@ export interface InstagramPostItem {
 
 interface DirectMessageItem {
   id: string
+  recipientId?: string
   senderName: string
   senderHandle: string
   avatarUrl?: string
@@ -169,6 +172,68 @@ export default function InstagramStudio() {
       })
       setPosts(mappedPosts)
     }
+
+    // Carregar conversas reais da Meta Graph API e logs do RAG Auto-DM do Supabase Blog
+    if (res.conversations && res.conversations.length > 0) {
+      const realConvs: DirectMessageItem[] = res.conversations.map((c: any) => {
+        const participant = c.participants?.[0] || { name: 'Lead Instagram', username: 'lead' }
+        const recipientId = participant.id || c.id
+        return {
+          id: c.id,
+          recipientId,
+          senderName: participant.name || participant.username || 'Lead Instagram',
+          senderHandle: participant.username ? `@${participant.username}` : '@lead.instagram',
+          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+          lastMessage: c.messages?.[0]?.message || 'Conversa iniciada',
+          updatedAt: c.updatedTime ? new Date(c.updatedTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Agora',
+          unread: c.unreadCount > 0,
+          messages: (c.messages || []).map((m: any) => ({
+            id: m.id,
+            sender: m.from?.id === res.account?.id ? 'me' : 'user',
+            text: m.message,
+            time: m.createdTime ? new Date(m.createdTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Agora',
+          })).reverse(),
+        }
+      })
+      setConversations(realConvs)
+      if (realConvs[0]) setSelectedConvId(realConvs[0].id)
+    } else if (res.autoDmLogs && res.autoDmLogs.length > 0) {
+      // Se não houver conversas no Meta App sandbox, agrupa os logs de Auto-DM do Supabase Blog por sender_id
+      const logsBySender: Record<string, DirectMessageItem> = {}
+      res.autoDmLogs.forEach((log) => {
+        if (!logsBySender[log.sender_id]) {
+          logsBySender[log.sender_id] = {
+            id: log.sender_id,
+            recipientId: log.sender_id,
+            senderName: `Lead (${log.sender_id.slice(-6)})`,
+            senderHandle: `@user_${log.sender_id.slice(-6)}`,
+            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+            lastMessage: log.ai_response,
+            updatedAt: new Date(log.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            unread: false,
+            messages: [],
+          }
+        }
+        logsBySender[log.sender_id].messages.push(
+          {
+            id: `log-req-${log.id}`,
+            sender: 'user',
+            text: log.user_message,
+            time: new Date(log.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          },
+          {
+            id: `log-res-${log.id}`,
+            sender: 'me',
+            text: log.ai_response,
+            time: new Date(log.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          }
+        )
+      })
+
+      const logConvs = Object.values(logsBySender)
+      setConversations(logConvs)
+      if (logConvs[0]) setSelectedConvId(logConvs[0].id)
+    }
   }, [])
 
   useEffect(() => {
@@ -229,7 +294,7 @@ export default function InstagramStudio() {
     setPosts((prev) => prev.filter((p) => p.id !== id))
   }
 
-  function handleSendDmReply(e: React.FormEvent) {
+  async function handleSendDmReply(e: React.FormEvent) {
     e.preventDefault()
     if (!replyText.trim()) return
 
@@ -237,7 +302,12 @@ export default function InstagramStudio() {
     if (!activeConv) return
 
     setSendingDm(true)
-    setTimeout(() => {
+    const targetRecipientId = (activeConv as any).recipientId || activeConv.id
+
+    const res = await sendInstagramDirectMessageAction(targetRecipientId, replyText)
+    setSendingDm(false)
+
+    if (res.success) {
       setConversations((prev) =>
         prev.map((c) => {
           if (c.id === selectedConvId) {
@@ -255,9 +325,11 @@ export default function InstagramStudio() {
           return c
         })
       )
+      setFeedback({ type: 'success', text: 'Mensagem enviada com sucesso no Direct do Instagram!' })
       setReplyText('')
-      setSendingDm(false)
-    }, 400)
+    } else {
+      setFeedback({ type: 'error', text: res.error || 'Erro ao enviar Direct.' })
+    }
   }
 
   const selectedConv = conversations.find((c) => c.id === selectedConvId)

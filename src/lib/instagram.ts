@@ -4,13 +4,14 @@ const INSTAGRAM_API_URL = 'https://graph.facebook.com/v19.0'
 
 function getInstagramCredentials() {
   const accountId = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID || '17841446640464548'
+  const pageId = process.env.INSTAGRAM_PAGE_ID || '1271941769326461'
   const accessToken = process.env.INSTAGRAM_PAGE_ACCESS_TOKEN || process.env.INSTAGRAM_ACCESS_TOKEN
 
   if (!accessToken) {
     throw new Error('INSTAGRAM_ACCESS_TOKEN não foi configurado no servidor (.env.local).')
   }
 
-  return { accountId, accessToken }
+  return { accountId, pageId, accessToken }
 }
 
 export interface InstagramAccountInfo {

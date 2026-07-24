@@ -420,20 +420,33 @@ export async function sendBrevoTransactionalTemplateAction(
  */
 export async function getInstagramDataAction() {
   try {
-    const { getInstagramAccountInfo, getInstagramMediaList } = await import('@/lib/instagram')
-    const [account, mediaList] = await Promise.all([
+    const { getInstagramAccountInfo, getInstagramMediaList, getInstagramConversations } = await import('@/lib/instagram')
+    const { createBlogAdminClient } = await import('@/lib/blog-admin-client')
+    const supabase = createBlogAdminClient()
+
+    const [account, mediaList, conversations, logsRes] = await Promise.all([
       getInstagramAccountInfo(),
       getInstagramMediaList(),
+      getInstagramConversations(),
+      supabase.from('instagram_auto_dm_logs').select('*').order('created_at', { ascending: false }).limit(30),
     ])
 
     return {
       success: true,
       account,
       mediaList,
+      conversations: conversations || [],
+      autoDmLogs: (logsRes.data || []) as Array<{
+        id: string
+        sender_id: string
+        user_message: string
+        ai_response: string
+        created_at: string
+      }>,
     }
   } catch (err: unknown) {
     const error = err instanceof Error ? err.message : 'Erro ao buscar dados do Instagram.'
-    return { success: false, error, account: null, mediaList: [] }
+    return { success: false, error, account: null, mediaList: [], conversations: [], autoDmLogs: [] }
   }
 }
 
@@ -452,16 +465,38 @@ export async function publishInstagramPostAction(imageUrl: string, caption: stri
 }
 
 /**
- * Server Action segura para enviar mensagem direta (DM) no Instagram
+ * Server Action segura para enviar mensagem direta (DM) no Instagram e salvar o log no Supabase Blog
  */
 export async function sendInstagramDirectMessageAction(recipientId: string, text: string) {
   try {
     const { sendInstagramDirectMessage } = await import('@/lib/instagram')
+    const { createBlogAdminClient } = await import('@/lib/blog-admin-client')
+
     const res = await sendInstagramDirectMessage(recipientId, text)
+
+    // Registrar o log da mensagem enviada no Supabase Blog
+    try {
+      const supabase = createBlogAdminClient()
+      await supabase.from('instagram_auto_dm_logs').insert([
+        {
+          sender_id: recipientId,
+          user_message: '[Resposta Manual Admin]',
+          gatekeeper_triggered: false,
+          retrieved_context: null,
+          ai_response: text,
+          execution_time_ms: 0,
+          created_at: new Date().toISOString(),
+        },
+      ])
+    } catch (logErr) {
+      console.warn('Aviso ao registrar log manual no Supabase:', logErr)
+    }
+
     return { success: true, messageId: res.messageId, message: 'Direct enviada com sucesso!' }
   } catch (err: unknown) {
     const error = err instanceof Error ? err.message : 'Erro ao enviar mensagem no Instagram.'
     return { success: false, error }
   }
 }
+
 
