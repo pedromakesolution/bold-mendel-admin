@@ -175,24 +175,37 @@ export default function InstagramStudio() {
 
     // Carregar conversas reais da Meta Graph API e logs do RAG Auto-DM do Supabase Blog
     if (res.conversations && res.conversations.length > 0) {
+      const myUsername = res.account?.username?.toLowerCase() || 'freeladock'
+      const myId = res.account?.id
+
       const realConvs: DirectMessageItem[] = res.conversations.map((c: any) => {
-        const participant = c.participants?.[0] || { name: 'Lead Instagram', username: 'lead' }
+        const participant = (c.participants || []).find(
+          (p: any) => p.username?.toLowerCase() !== myUsername && p.id !== myId
+        ) || c.participants?.[0] || { name: 'Lead Instagram', username: 'lead' }
+
         const recipientId = participant.id || c.id
+        const lastMsgText = c.messages?.[0]?.message || 'Conversa iniciada'
+
         return {
           id: c.id,
           recipientId,
-          senderName: participant.name || participant.username || 'Lead Instagram',
+          senderName: participant.name || (participant.username ? `@${participant.username}` : 'Lead Instagram'),
           senderHandle: participant.username ? `@${participant.username}` : '@lead.instagram',
           avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-          lastMessage: c.messages?.[0]?.message || 'Conversa iniciada',
+          lastMessage: lastMsgText,
           updatedAt: c.updatedTime ? new Date(c.updatedTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Agora',
           unread: c.unreadCount > 0,
-          messages: (c.messages || []).map((m: any) => ({
-            id: m.id,
-            sender: m.from?.id === res.account?.id ? 'me' : 'user',
-            text: m.message,
-            time: m.createdTime ? new Date(m.createdTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Agora',
-          })).reverse(),
+          messages: (c.messages || [])
+            .map((m: any) => {
+              const isMe = m.from?.username?.toLowerCase() === myUsername || m.from?.id === myId
+              return {
+                id: m.id,
+                sender: isMe ? ('me' as const) : ('user' as const),
+                text: m.message || '',
+                time: m.createdTime ? new Date(m.createdTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Agora',
+              }
+            })
+            .reverse(),
         }
       })
       setConversations(realConvs)
